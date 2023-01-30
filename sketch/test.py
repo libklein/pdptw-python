@@ -6,7 +6,7 @@ from typing import Iterable
 
 from models import create_instance, Instance, Request
 from solver import Solver
-from solution import Solution, Route, Node, Label, Evaluation
+from solution import Solution, Route, Node, Label, Evaluation, ExactEvaluation
 import random
 
 driver_file = Path(argv[1])
@@ -62,51 +62,52 @@ def insert_requests_randomly(route: Route, requests: Iterable[Request]) -> Route
 
 def test_removal_evaluation(instance: Instance, n_tests=1000):
     evaluation = Evaluation(instance=inst)
+    exact_evaluation = ExactEvaluation(instance)
     sol = Solution(instance=instance)
     avg_req_per_route = sum(x.num_items for x in instance.requests)/sum(x.capacity for x in instance.vehicles)
     # Test removal - create random route
-    for _ in range(n_tests):
+    for test_num in range(n_tests):
+        print(f"\rRemoval test {test_num}/{n_tests}", end='', flush=True)
         route = random.choice(sol.routes)
         request_set = random.sample(instance.requests, k=random.randint(0, math.ceil(2*avg_req_per_route)))
         rand_route = insert_requests_randomly(route=route, requests=request_set)
         # Remove all requests in random order
-        while len(route.requests) > 0:
-            next_removed_request = random.choice(route.requests)
+        while len(rand_route.requests) > 0:
+            next_removed_request = random.choice(rand_route.requests)
+
             simulated = evaluation.calculate_removal(next_removed_request, rand_route)
+            exact = exact_evaluation.calculate_removal(next_removed_request, rand_route)
 
-            prev_cost = evaluation.compute_cost(rand_route.label)
+            assert exact.feasible == simulated.feasible
+            assert abs(exact.delta_cost - simulated.delta_cost) <= 0.01, f'Expected {exact.delta_cost=} got {simulated.delta_cost=}'
 
+            # Perform removal
             rand_route.remove(next_removed_request)
             rand_route.update()
-            assert rand_route.feasible == simulated.feasible
-            assert (evaluation.compute_cost(rand_route.label) - prev_cost) == simulated.delta_cost
+    print()
 
 def test_insertion_evaluation(instance: Instance, n_tests=1000):
     evaluation = Evaluation(instance=inst)
+    exact_evaluation = ExactEvaluation(instance)
     sol = Solution(instance=instance)
     avg_req_per_route = sum(x.num_items for x in instance.requests)/sum(x.capacity for x in instance.vehicles)
     # Test removal - create random route
-    for _ in range(n_tests):
+    for test_num in range(n_tests):
+        print(f"\rInsertion test {test_num}/{n_tests}", end='', flush=True)
         route = deepcopy(random.choice(sol.routes))
         request_set = random.sample(instance.requests, k=random.randint(0, math.ceil(2*avg_req_per_route)))
         for request_to_insert in request_set:
             insert_pickup_pos = random.randint(1, len(route.nodes))
 
-            for simulated_move in evaluation.calculate_insertion(request_to_insert, route, at=insert_pickup_pos):
-                tmp_route = deepcopy(route)
-                prev_cost = evaluation.compute_cost(tmp_route.label)
-
-                tmp_route.insert(request_to_insert, pickup_at=simulated_move.pickup_insertion_point,
-                                 dropoff_at=simulated_move.dropoff_insertion_point)
-                tmp_route.update()
-                assert tmp_route.feasible == simulated_move.feasible
-
-                computed_cost = evaluation.compute_cost(tmp_route.label)
-                assert ((computed_cost - prev_cost) - simulated_move.delta_cost) < 0.01, f'{computed_cost-prev_cost=} is not {simulated_move.delta_cost=}'
+            for exact_move, simulated_move in zip(exact_evaluation.calculate_insertion(request_to_insert, route, at=insert_pickup_pos),
+                                                  evaluation.calculate_insertion(request_to_insert, route, at=insert_pickup_pos)):
+                assert (exact_move.delta_cost - simulated_move.delta_cost) < 0.01, f'{exact_move.delta_cost=} is not {simulated_move.delta_cost=}'
 
             insert_dropoff_pos = random.randint(insert_pickup_pos, len(route.nodes))
             route.insert(request_to_insert, pickup_at=insert_pickup_pos, dropoff_at=insert_dropoff_pos)
             route.update()
+    print()
 
 test_insertion_evaluation(instance=inst)
+print("------------------------------------")
 test_removal_evaluation(instance=inst)

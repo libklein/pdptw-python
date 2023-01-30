@@ -156,8 +156,12 @@ def create_instance(order_file: Path, driver_file: Path) -> Instance:
     requests: list[Request] = []
 
     for order in orders:
-        vertices.append(Vertex(vertex_id=len(vertices), vertex_type='pickup', tw_start=order.prep_duration_sec, tw_end=latest_driver_shift, lat_long=(order.restaurant_lat, order.restaurant_long), items=order.no_of_items))
-        vertices.append(Vertex(vertex_id=len(vertices), vertex_type='dropoff', tw_start=order.prep_duration_sec, tw_end=latest_driver_shift, lat_long=(order.customer_lat, order.customer_long), items=-order.no_of_items))
+        vertices.append(Vertex(vertex_id=len(vertices), vertex_type='pickup',
+                               tw_start=order.prep_duration_sec, tw_end=order.preferred_otd_sec,
+                               lat_long=(order.restaurant_lat, order.restaurant_long), items=order.no_of_items))
+        vertices.append(Vertex(vertex_id=len(vertices), vertex_type='dropoff',
+                               tw_start=order.prep_duration_sec, tw_end=order.preferred_otd_sec,
+                               lat_long=(order.customer_lat, order.customer_long), items=-order.no_of_items))
 
         pickup, dropoff = vertices[-2], vertices[-1]
         requests.append(Request(pickup=pickup, dropoff=dropoff, num_items=order.no_of_items))

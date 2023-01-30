@@ -2,7 +2,7 @@ from copy import copy
 from dataclasses import dataclass
 
 from models import Instance, Vehicle, Request, Vertex
-from solution import Solution, Route, Evaluation, InsertionMove, RemovalMove
+from solution import Solution, Route, Evaluation, InsertionMove, RemovalMove, ExactEvaluation, PenaltyFactors
 import random
 
 @dataclass
@@ -33,15 +33,18 @@ class RelocateMove:
 class Solver:
     def __init__(self, instance: Instance):
         self._instance = instance
-        self._evaluation = Evaluation(self._instance)
+        self._obj_factor = PenaltyFactors(1.,1.,1.,0.)
+        self._penalty = copy(self._obj_factor)
+
+        self._evaluation = Evaluation(self._instance, self._penalty)
 
     def _try_relocate_request(self, solution: Solution):
         for origin_route in solution.routes:
-            for target_route in solution.routes:
-                if id(origin_route) == id(target_route):
-                    continue
-                for moved_request in origin_route.requests:
-                    removal_move = self._evaluation.calculate_removal(moved_request, origin_route)
+            for moved_request in origin_route.requests:
+                removal_move = self._evaluation.calculate_removal(moved_request, origin_route)
+                for target_route in solution.routes:
+                    if id(origin_route) == id(target_route):
+                        continue
                     for insertion_pos in range(1, len(target_route.nodes)+1):
                         for move in self._evaluation.calculate_insertion(moved_request, target_route, insertion_pos):
                             yield RelocateMove(removal_move=removal_move, insertion_move=move)
@@ -55,10 +58,20 @@ class Solver:
             if best_move.delta_cost >= 0:
                 return
             # Apply
-            prev_cost = solution.cost
+            prev_cost = solution.get_objective(self._penalty)
+            expected_cost = prev_cost + best_move.delta_cost
+            print("Applying move", best_move.delta_cost, "to solution with cost", prev_cost)
             best_move.apply(solution)
-            print(solution.cost, solution.feasible, best_move.delta_cost)
-            assert prev_cost >= solution.cost
+            best_move.update()
+
+            req_set = set()
+            for r in solution.routes:
+                for req in r.requests:
+                    if req in req_set:
+                        raise ValueError
+                    req_set.add(req)
+
+            print(f"New cost: {solution.get_objective(self._penalty)}, prev cost: {prev_cost}, expected: {expected_cost}, delta: {abs(prev_cost-expected_cost)}")
 
     def _construct_initial_solution(self) -> Solution:
         sol = Solution(self._instance)
