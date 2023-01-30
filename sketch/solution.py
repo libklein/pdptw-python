@@ -1,5 +1,5 @@
 from __future__ import annotations
-from models import Instance, Vertex, Request, Vehicle
+from models import Instance, Vertex, Request, Vehicle, requests_per_driver
 from typing import Iterable
 from dataclasses import dataclass
 from itertools import pairwise
@@ -11,8 +11,6 @@ class PenaltyFactors:
     overtime_factor: float
     overload_factor: float
     fairness_factor: float
-
-UNWEIGHTED_FACTORS = PenaltyFactors(1.,1.,1.,0.)
 @dataclass(frozen=True)
 class Cost:
     travel_time: float
@@ -22,7 +20,7 @@ class Cost:
     fairness_violation: float
 
     def __post_init__(self):
-        assert self.travel_time >= 0 and self.delay >= 0 and self.overtime >= 0
+        assert self.travel_time >= 0 and self.delay >= 0 and self.overtime >= 0 and self.fairness_violation >= 0.0
 
     def __str__(self):
         return f"{self.travel_time=} {self.delay=} {self.overtime=} {self.overload=} {self.fairness_violation=} ({self.feasible=})"
@@ -36,6 +34,12 @@ class Cost:
         return self.travel_time + self.delay*other.delay_factor + self.overtime*other.overtime_factor \
             + self.overload*other.overload_factor + self.fairness_violation*other.fairness_factor
 
+    def __add__(self, other):
+        assert isinstance(other, Cost)
+        return Cost(self.travel_time+other.travel_time, self.delay+other.delay,
+                    self.overtime+other.overtime, self.overload+other.overload,
+                    self.fairness_violation+other.fairness_violation)
+
 @dataclass
 class Label:
     cum_time: float
@@ -48,8 +52,8 @@ class Label:
     cum_delay: float
     max_load: float
 
-    def get_cost(self, capacity: float, shift_duration: float):
-        return Cost(travel_time=self.cum_travel_time, delay=self.cum_delay, overtime=max(0., self.cum_time - shift_duration), overload=max(0., self.max_load - capacity), fairness_violation=0.)
+    def get_cost(self, capacity: float, shift_duration: float, fairness_violation: float):
+        return Cost(travel_time=self.cum_travel_time, delay=self.cum_delay, overtime=max(0., self.cum_time - shift_duration), overload=max(0., self.max_load - capacity), fairness_violation=fairness_violation)
 
     @staticmethod
     def FromVertex(vertex: Vertex):
@@ -174,7 +178,8 @@ class Route:
 
     @property
     def cost(self):
-        return self.label.get_cost(self._vehicle.capacity, self._vehicle.end_time)
+        return self.label.get_cost(self._vehicle.capacity, self._vehicle.end_time,
+                                   abs(requests_per_driver(self._instance) - len(self.requests)))
 
     @property
     def label(self):
@@ -256,18 +261,20 @@ class RemovalMove:
 
 class Evaluation:
 
-    def __init__(self, instance: Instance, penalty_factors: PenaltyFactors):
+    def __init__(self, instance: Instance, penalty_factors: PenaltyFactors, target_fairness: float):
         self._instance = instance
         self._penalty_factors = penalty_factors
+        self._target_fairness = target_fairness
         assert all(x.capacity == y.capacity for x,y in pairwise(self._instance.vehicles))
 
     def compute_cost(self, cost: Cost) -> float:
         return cost * self._penalty_factors
 
     def calculate_removal(self, of: Request, from_route: Route) -> RemovalMove:
-        prev_cost = self.compute_cost(from_route.label.get_cost(from_route._vehicle.capacity, from_route._vehicle.end_time))
+        prev_cost = self.compute_cost(from_route.cost)
         pickup_idx, dropoff_idx = from_route.get_idx_of_request(of)
         assert pickup_idx > 0
+        fairness_violation = abs((len(from_route.requests) - 1) - self._target_fairness)
         prev_node = from_route.nodes[pickup_idx-1]
         label = prev_node.forward_label
         for i in range(pickup_idx+1, dropoff_idx):
@@ -281,15 +288,16 @@ class Evaluation:
             label = concatenate(label, target_node.backward_label,
                                 self._instance.get_travel_time(prev_node.vertex, target_node.vertex))
 
-        cost = label.get_cost(from_route._vehicle.capacity, from_route._vehicle.end_time)
+        cost = label.get_cost(from_route._vehicle.capacity, from_route._vehicle.end_time, fairness_violation)
         return RemovalMove(delta_cost=self.compute_cost(cost) - prev_cost,
                            feasible=cost.feasible,
                            request=of, route=from_route)
 
     def calculate_insertion(self, of: Request, into_route: Route, at: int) -> Iterable[InsertionMove]:
-        prev_cost = self.compute_cost(into_route.label.get_cost(into_route._vehicle.capacity, into_route._vehicle.end_time))
+        prev_cost = self.compute_cost(into_route.cost)
         # Find best insertion spot
         assert at > 0
+        fairness_violation = abs((len(into_route.requests) + 1) - self._target_fairness)
         capacity = into_route._vehicle.capacity
         pred_vertex = into_route.nodes[at-1].vertex
         label = concatenate(into_route.nodes[at-1].forward_label, Label.FromVertex(of.pickup),
@@ -302,7 +310,7 @@ class Evaluation:
                                          self._instance.get_travel_time(pred_vertex, of.dropoff))
             inserted_label = concatenate(inserted_label, succ_node.backward_label,
                                          self._instance.get_travel_time(of.dropoff, succ_node.vertex))
-            insertion_cost = inserted_label.get_cost(capacity, into_route._vehicle.end_time)
+            insertion_cost = inserted_label.get_cost(capacity, into_route._vehicle.end_time, fairness_violation)
             yield InsertionMove(delta_cost=self.compute_cost(insertion_cost) - prev_cost,
                                 feasible=insertion_cost.feasible,
                                 pickup_insertion_point=at,
@@ -318,7 +326,7 @@ class Evaluation:
         assert pred_vertex == into_route.nodes[-1].vertex or pred_vertex == of.pickup
 
         label = concatenate(label, Label.FromVertex(of.dropoff), self._instance.get_travel_time(pred_vertex, of.dropoff))
-        cost = label.get_cost(capacity, into_route._vehicle.end_time)
+        cost = label.get_cost(capacity, into_route._vehicle.end_time, fairness_violation)
         yield InsertionMove(delta_cost=self.compute_cost(cost) - prev_cost,
                             feasible=cost.feasible,
                             pickup_insertion_point=at, dropoff_insertion_point=len(into_route),
@@ -327,9 +335,10 @@ class Evaluation:
 
 class ExactEvaluation:
 
-    def __init__(self, instance: Instance, penalty_factors: PenaltyFactors):
+    def __init__(self, instance: Instance, penalty_factors: PenaltyFactors, target_fairness: float):
         self._instance = instance
         self._penalty_factors = penalty_factors
+        self._target_fairness = target_fairness
         assert all(x.capacity == y.capacity for x,y in pairwise(self._instance.vehicles))
 
     def compute_cost(self, cost: Cost) -> float:
@@ -384,7 +393,11 @@ class Solution:
         return next(r for r in self.routes if of in r)
 
     def __str__(self):
-        return f'Solution with cost {self.get_objective(UNWEIGHTED_FACTORS)} ({self.feasible}):' + '\n\t'.join(map(str, self.routes))
+        return f'Solution with cost {self.cost} {self.feasible}:' + '\n\t'.join(map(str, self.routes))
+
+    @property
+    def cost(self) -> Cost:
+        return sum((r.cost for r in self.routes), Cost(0.,0.,0.,0.,0.))
 
     @property
     def feasible(self):

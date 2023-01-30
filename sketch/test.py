@@ -4,9 +4,9 @@ from pathlib import Path
 from sys import argv
 from typing import Iterable
 
-from models import create_instance, Instance, Request
+from models import create_instance, Instance, Request, requests_per_driver
 from solver import Solver
-from solution import Solution, Route, Node, Label, Evaluation, ExactEvaluation
+from solution import Solution, Route, Node, Label, Evaluation, ExactEvaluation, PenaltyFactors
 import random
 
 driver_file = Path(argv[1])
@@ -60,9 +60,9 @@ def insert_requests_randomly(route: Route, requests: Iterable[Request]) -> Route
     new_route.update()
     return new_route
 
-def test_removal_evaluation(instance: Instance, n_tests=1000):
-    evaluation = Evaluation(instance=inst)
-    exact_evaluation = ExactEvaluation(instance)
+def test_removal_evaluation(instance: Instance, penalty_factors: PenaltyFactors, n_tests=1000):
+    evaluation = Evaluation(instance=inst, penalty_factors=penalty_factors, target_fairness=requests_per_driver(instance))
+    exact_evaluation = ExactEvaluation(instance, penalty_factors=penalty_factors, target_fairness=requests_per_driver(instance))
     sol = Solution(instance=instance)
     avg_req_per_route = sum(x.num_items for x in instance.requests)/sum(x.capacity for x in instance.vehicles)
     # Test removal - create random route
@@ -86,9 +86,9 @@ def test_removal_evaluation(instance: Instance, n_tests=1000):
             rand_route.update()
     print()
 
-def test_insertion_evaluation(instance: Instance, n_tests=1000):
-    evaluation = Evaluation(instance=inst)
-    exact_evaluation = ExactEvaluation(instance)
+def test_insertion_evaluation(instance: Instance, penalty_factors: PenaltyFactors, n_tests=1000):
+    evaluation = Evaluation(instance=inst, penalty_factors=penalty_factors, target_fairness=requests_per_driver(instance))
+    exact_evaluation = ExactEvaluation(instance, penalty_factors=penalty_factors, target_fairness=requests_per_driver(instance))
     sol = Solution(instance=instance)
     avg_req_per_route = sum(x.num_items for x in instance.requests)/sum(x.capacity for x in instance.vehicles)
     # Test removal - create random route
@@ -108,6 +108,7 @@ def test_insertion_evaluation(instance: Instance, n_tests=1000):
             route.update()
     print()
 
-test_insertion_evaluation(instance=inst)
+pen = PenaltyFactors(1.0,1.0,1.,100.)
+test_insertion_evaluation(instance=inst, penalty_factors=pen)
 print("------------------------------------")
-test_removal_evaluation(instance=inst)
+test_removal_evaluation(instance=inst, penalty_factors=pen)

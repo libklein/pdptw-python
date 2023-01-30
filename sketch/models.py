@@ -171,5 +171,6 @@ def create_instance(order_file: Path, driver_file: Path) -> Instance:
 
     return Instance(vertices, travel_times, vehicles, requests)
 
-
+def requests_per_driver(instance: Instance) -> float:
+    return len(instance.requests)/len(instance.vehicles)
 

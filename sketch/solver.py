@@ -33,10 +33,12 @@ class RelocateMove:
 class Solver:
     def __init__(self, instance: Instance):
         self._instance = instance
-        self._obj_factor = PenaltyFactors(1.,1.,1.,0.)
+        self._obj_factor = PenaltyFactors(1.,1.,1.,100000.)
         self._penalty = copy(self._obj_factor)
 
-        self._evaluation = Evaluation(self._instance, self._penalty)
+        self._avg_requests_per_driver = len(instance.requests)/len(instance.vehicles)
+
+        self._evaluation = Evaluation(self._instance, self._penalty, self._avg_requests_per_driver)
 
     def _try_relocate_request(self, solution: Solution):
         for origin_route in solution.routes:
