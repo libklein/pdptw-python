@@ -1,0 +1,4 @@
+- Slots
+- TODOs in Code
+- DDD for Driver etc.
+	- Interface: Location
