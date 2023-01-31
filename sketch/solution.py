@@ -287,7 +287,7 @@ class Evaluation:
 
     def __init__(self, instance: Instance, penalty_factors: PenaltyFactors, target_fairness: float):
         self._instance = instance
-        self._penalty_factors = penalty_factors
+        self._penalty_factors = copy(penalty_factors)
         self._target_fairness = target_fairness
         assert all(x.capacity == y.capacity for x,y in pairwise(self._instance.vehicles))
 
@@ -406,6 +406,7 @@ class Solution:
         ]
         pass
 
+    # TODO Replace with copy?
     def __deepcopy__(self, memodict=None):
         if memodict is None:
             memodict = {}

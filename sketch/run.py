@@ -9,6 +9,9 @@ from solver import Solver
 from solution import Solution, Route, Node, Label, Evaluation
 import random
 
+# Note, i use the global random here. I'd inject instances of Random() in production code
+random.seed(0)
+
 driver_file = Path(argv[1])
 order_file = Path(argv[2])
 
@@ -28,7 +31,9 @@ if not best_sol.feasible:
     raise RuntimeError("Failed to find a feasible solution")
 
 # Export the solution
+"""
 for request in inst.requests:
     driver, pickup_time_sec, dropoff_time_sec = find_request_data(best_sol, request)
     # Since time windows are integer, ceil is always feasible for dropoff, floor for pickup
     print(request.order.order_id, driver.driver_id, math.floor(pickup_time_sec), math.ceil(dropoff_time_sec))
+"""
