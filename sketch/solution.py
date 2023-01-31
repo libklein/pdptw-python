@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import itertools
+import time
+import uuid
 
 from models import Instance, Vertex, Request, Vehicle, requests_per_driver
 from typing import Iterable
@@ -114,6 +116,11 @@ class Route:
         self._vehicle = vehicle
         self._nodes: list[Node] = [Node.FromVertex(self._vehicle.start)]
         self._requests: list[Request] = []
+        self._last_modified_timestamp = time.time()
+
+    @property
+    def last_modification_time(self):
+        return self._last_modified_timestamp
 
     def __deepcopy__(self, memodict=None):
         if memodict is None:
@@ -145,11 +152,15 @@ class Route:
         self._nodes.insert(dropoff_at+1, Node.FromVertex(request.dropoff))
         self._requests.append(request)
 
+        self._last_modified_timestamp = time.time()
+
     def remove(self, request: Request):
         pickup_pos, dropoff_pos = self.get_idx_of_request(request)
         del self._nodes[dropoff_pos]
         del self._nodes[pickup_pos]
         self._requests.remove(request)
+
+        self._last_modified_timestamp = time.time()
 
     def append(self, request: Request):
         self.insert(request, len(self._nodes), len(self._nodes))
@@ -210,37 +221,6 @@ class Route:
     @property
     def label(self):
         return self._nodes[-1].forward_label
-
-    def calculate_forward_sequence(self, from_node: Node, to_node: Node) -> Iterable[Label]:
-        from_pos = self._nodes.index(from_node)
-        label = from_node.forward_label
-        prev_node = from_node
-        for cur_node_pos in range(from_pos+1, len(self._nodes)):
-            cur_node = self._nodes[cur_node_pos]
-            if prev_node.vertex.vertex_id == to_node.vertex.vertex_id:
-                break
-
-            label = concatenate(label,
-                                Label.FromVertex(cur_node.vertex),
-                                self._instance.get_travel_time(prev_node.vertex, cur_node.vertex))
-            yield label
-            prev_node = cur_node
-        return label
-
-    def calculate_backward_sequence(self, from_node: Node, to_node: Node) -> Iterable[Label]:
-        from_pos = self._nodes.index(from_node)
-        label = from_node.backward_label
-        next_node = from_node
-        for cur_node_pos in range(from_pos-1, -1, -1):
-            cur_node = self._nodes[cur_node_pos]
-            if next_node.vertex.vertex_id == to_node.vertex.vertex_id:
-                break
-
-            label = concatenate(Label.FromVertex(cur_node.vertex),
-                                label,
-                                self._instance.get_travel_time(cur_node.vertex, next_node.vertex))
-            yield label
-            next_node = cur_node
 
     def get_objective(self, factors: PenaltyFactors):
         return self.cost*factors
@@ -406,7 +386,6 @@ class Solution:
         self.routes: list[Route] = [
             Route(self._instance, vehicle) for vehicle in self._instance.vehicles
         ]
-        pass
 
     # TODO Replace with copy?
     def __deepcopy__(self, memodict=None):

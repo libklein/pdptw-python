@@ -44,19 +44,26 @@ class Solver:
         assert len(set(x for route in sol.routes for x in route.requests)) == len(self._instance.requests)
         return sol
 
+    def _should_terminate(self):
+        return (time.time() - self._solver_start_time) >= 60
+
     def solve(self):
         best_solution = self._construct_initial_solution()
+        yield best_solution
+        best_feasible_solution = best_solution if best_solution.feasible else None
         # TODO Termination criterion
         # Use wall clock time
-        solver_start_time = time.time()
+        self._solver_start_time = time.time()
         # TODO this does not actually terminate in 60 secs
-        while (time.time() - solver_start_time) < 60:
+        while True:
             # Generate new solution
             next_candidate_solution = next(self._large_neighborhood.explore_neighborhood_of(best_solution))
             # Improve with local search
-            self._local_search_solver.optimize(next_candidate_solution)
-            if (best_obj := best_solution.get_objective(self._obj_factor)) > (cand_obj := next_candidate_solution.get_objective(self._obj_factor)):
-                print(f'Improved solution from {best_obj=} to {cand_obj=}.')
-                best_solution = next_candidate_solution
-            # TODO Yield best solution on improvement
-        return best_solution
+            for _ in self._local_search_solver.optimize(next_candidate_solution):
+                self._
+                if (best_obj := best_solution.get_objective(self._obj_factor)) > (cand_obj := next_candidate_solution.get_objective(self._obj_factor)):
+                    print(f'Improved solution from {best_obj=} to {cand_obj=}.')
+                    best_solution = next_candidate_solution
+                    yield best_solution
+                if self._should_terminate():
+                    return

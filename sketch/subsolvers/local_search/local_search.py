@@ -2,7 +2,7 @@
 import itertools
 from copy import copy
 from dataclasses import dataclass
-from typing import Protocol, Iterable
+from typing import Protocol, Iterable, Optional
 
 from models import Instance
 from solution import PenaltyFactors, Solution, Evaluation, RemovalMove, InsertionMove
@@ -32,6 +32,10 @@ class Operator(Protocol):
     def generate_moves(self, solution: Solution) -> Iterable[Move]:
         ...
 
+    def reset_cache(self):
+        ...
+
+
 class LocalSearchSolver:
     def __init__(self, instance: Instance, initial_penalty: PenaltyFactors, operators: list[Operator]):
         self._instance = instance
@@ -41,18 +45,28 @@ class LocalSearchSolver:
     def _generate_moves(self, solution: Solution) -> Iterable[Move]:
         return itertools.chain(*(op.generate_moves(solution) for op in self._operators))
 
+    def _reset_cache(self):
+        for op in self._operators:
+            op.reset_cache()
+
+    def _find_first_improvement(self, solution: Solution) -> Optional[Move]:
+        for move in self._generate_moves(solution):
+            if not move.worthwhile:
+                continue
+            return move
+        return None
+
     def optimize(self, solution: Solution):
+        self._reset_cache()
         while True:
-            moves = self._generate_moves(solution)
-            best_move = min(moves, key=lambda move: move.delta_cost)
-            if best_move.delta_cost >= 0:
+            if (move := self._find_first_improvement(solution)) is None:
                 return
             # Apply
             prev_cost = solution.get_objective(self._penalty)
-            expected_cost = prev_cost + best_move.delta_cost
-            #print("Applying move", best_move.delta_cost, "to solution with cost", prev_cost)
-            best_move.apply(solution)
-            best_move.update()
-
-            #print(
-            #    f"New cost: {solution.get_objective(self._penalty)}, prev cost: {prev_cost}, expected: {expected_cost}, delta: {abs(prev_cost - expected_cost)}")
+            expected_cost = prev_cost + move.delta_cost
+            #print("Applying move", move.delta_cost, "to solution with cost", prev_cost)
+            move.apply(solution)
+            move.update()
+            yield
+            #print(f"New cost: {solution.get_objective(self._penalty)}, prev cost: {prev_cost}, expected: {expected_cost}, delta: {abs(prev_cost - expected_cost)}")
+            assert abs(expected_cost - solution.get_objective(self._penalty)) <= 0.01

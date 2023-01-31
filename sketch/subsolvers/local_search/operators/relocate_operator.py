@@ -1,7 +1,8 @@
 # coding=utf-8
+import time
 from dataclasses import dataclass
 
-from solution import RemovalMove, InsertionMove, Evaluation, Solution
+from solution import RemovalMove, InsertionMove, Evaluation, Solution, Route
 
 
 @dataclass
@@ -29,18 +30,30 @@ class RelocateMove:
         self.removal_move.update()
         self.insertion_move.update()
 
-
 class RelocateOperator:
     def __init__(self, evaluation: Evaluation):
         self._evaluation = evaluation
+        self.reset_cache()
+
+    def reset_cache(self):
+        self._last_route_evaluation_timestamps = {}
+
+    def _can_skip(self, origin_route: Route, target_route: Route):
+        return origin_route.last_modification_time < self._last_route_evaluation_timestamps.get(id(origin_route), -1) \
+            and target_route.last_modification_time < self._last_route_evaluation_timestamps.get(id(target_route), -1)
 
     def generate_moves(self, solution: Solution):
         for origin_route in solution.routes:
             for moved_request in origin_route.requests:
-                removal_move = self._evaluation.calculate_removal(moved_request, origin_route)
+                removal_move = None
                 for target_route in solution.routes:
+                    if self._can_skip(origin_route, target_route):
+                        continue
                     if id(origin_route) == id(target_route):
                         continue
+                    if removal_move is None:
+                        removal_move = self._evaluation.calculate_removal(moved_request, origin_route)
                     for insertion_pos in range(1, len(target_route.nodes) + 1):
                         for move in self._evaluation.calculate_insertion(moved_request, target_route, insertion_pos):
                             yield RelocateMove(removal_move=removal_move, insertion_move=move)
+            self._last_route_evaluation_timestamps[id(origin_route)] = time.time()
