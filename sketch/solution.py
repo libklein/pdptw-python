@@ -189,11 +189,13 @@ class Route:
     def __len__(self):
         return len(self._nodes)
 
-    def __contains__(self, vertex: Vertex):
-        assert isinstance(vertex, Vertex)
-        for n in self._nodes:
-            if n.vertex.vertex_id == vertex.vertex_id:
-                return True
+    def __contains__(self, item: Vertex | Request):
+        if isinstance(item, Request):
+            return item in self._requests
+        else:
+            for n in self._nodes:
+                if n.vertex.vertex_id == item.vertex_id:
+                    return True
         return False
 
     @property
@@ -414,11 +416,11 @@ class Solution:
         sol.routes = deepcopy(self.routes, memodict)
         return sol
 
-    def find_route(self, of: Vertex) -> Route:
+    def find_route(self, of: Vertex | Request) -> Route:
         return next(r for r in self.routes if of in r)
 
     def __str__(self):
-        return f'Solution with cost {self.cost} {self.feasible}:' + '\n\t'.join(map(str, self.routes))
+        return f'Solution with cost {self.cost} {self.feasible}:\n' + '\n\t'.join(map(str, self.routes))
 
     @property
     def cost(self) -> Cost:
@@ -427,6 +429,22 @@ class Solution:
     @property
     def feasible(self):
         return all(r.feasible for r in self.routes)
+
+    @property
+    def num_requests(self):
+        return sum(len(r.requests) for r in self.routes)
+
+    @property
+    def requests(self):
+        return itertools.chain(*(r.requests for r in self.routes))
+
+    def update(self):
+        for r in self.routes:
+            r.update()
+
+    def remove_request(self, request: Request):
+        route = self.find_route(request)
+        route.remove(request)
 
     def get_objective(self, factors: PenaltyFactors) -> float:
         return sum(x.get_objective(factors) for x in self.routes)

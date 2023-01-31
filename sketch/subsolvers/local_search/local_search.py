@@ -50,9 +50,9 @@ class LocalSearchSolver:
             # Apply
             prev_cost = solution.get_objective(self._penalty)
             expected_cost = prev_cost + best_move.delta_cost
-            print("Applying move", best_move.delta_cost, "to solution with cost", prev_cost)
+            #print("Applying move", best_move.delta_cost, "to solution with cost", prev_cost)
             best_move.apply(solution)
             best_move.update()
 
-            print(
-                f"New cost: {solution.get_objective(self._penalty)}, prev cost: {prev_cost}, expected: {expected_cost}, delta: {abs(prev_cost - expected_cost)}")
+            #print(
+            #    f"New cost: {solution.get_objective(self._penalty)}, prev cost: {prev_cost}, expected: {expected_cost}, delta: {abs(prev_cost - expected_cost)}")

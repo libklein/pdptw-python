@@ -1,9 +1,12 @@
+import time
 from copy import copy
+from typing import Protocol
 
 from models import Instance
+from subsolvers.large_neighborhood.large_neighborhood import RandomDestroyOperator, BestInsertionOperator
 from subsolvers.local_search.operators.relocate_operator import RelocateOperator
 from solution import Solution, Evaluation, PenaltyFactors
-from subsolvers import LocalSearchSolver
+from subsolvers import LocalSearchSolver, LargeNeighborhood
 import random
 
 class Solver:
@@ -20,6 +23,8 @@ class Solver:
 
         self._local_search_solver = LocalSearchSolver(self._instance, self._penalty,
                                                       [RelocateOperator(self._evaluation)])
+        self._large_neighborhood = LargeNeighborhood(ruin_operators=[RandomDestroyOperator(self._instance, fraction_to_remove=0.2)],
+                                                     recreate_operators=[BestInsertionOperator(Evaluation(self._instance, self._obj_factor, self._avg_requests_per_driver))])
 
     def _construct_initial_solution(self) -> Solution:
         sol = Solution(self._instance)
@@ -40,7 +45,18 @@ class Solver:
         return sol
 
     def solve(self):
-        sol = self._construct_initial_solution()
-        # Improve with local search
-        self._local_search_solver.optimize(sol)
-        return sol
+        best_solution = self._construct_initial_solution()
+        # TODO Termination criterion
+        # Use wall clock time
+        solver_start_time = time.time()
+        # TODO this does not actually terminate in 60 secs
+        while (time.time() - solver_start_time) < 60:
+            # Generate new solution
+            next_candidate_solution = next(self._large_neighborhood.explore_neighborhood_of(best_solution))
+            # Improve with local search
+            self._local_search_solver.optimize(next_candidate_solution)
+            if (best_obj := best_solution.get_objective(self._obj_factor)) > (cand_obj := next_candidate_solution.get_objective(self._obj_factor)):
+                print(f'Improved solution from {best_obj=} to {cand_obj=}.')
+                best_solution = next_candidate_solution
+            # TODO Yield best solution on improvement
+        return best_solution
