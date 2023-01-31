@@ -1,4 +1,7 @@
 from __future__ import annotations
+
+import itertools
+
 from models import Instance, Vertex, Request, Vehicle, requests_per_driver
 from typing import Iterable
 from dataclasses import dataclass
@@ -16,7 +19,7 @@ class Cost:
     travel_time: float
     delay: float
     overtime: float
-    overload: float
+    overload: int
     fairness_violation: float
 
     def __post_init__(self):
@@ -27,8 +30,15 @@ class Cost:
 
     @property
     def feasible(self):
-        return self.overtime == 0
+        return self.overtime == 0 and self.overload == 0
 
+    @property
+    def is_overloaded(self):
+        return self.overload > 0
+
+    @property
+    def has_overtime(self):
+        return self.overtime > 0
     def __mul__(self, other):
         assert isinstance(other, PenaltyFactors)
         return self.travel_time + self.delay*other.delay_factor + self.overtime*other.overtime_factor \
@@ -44,21 +54,22 @@ class Cost:
 class Label:
     cum_time: float
     cum_travel_time: float
-    cum_load: float
+    cum_load: int
 
+    activity_start_time: float
     earliest_arrival_time: float
     latest_arrival_time: float
 
     cum_delay: float
-    max_load: float
+    max_load: int
 
-    def get_cost(self, capacity: float, shift_duration: float, fairness_violation: float):
-        return Cost(travel_time=self.cum_travel_time, delay=self.cum_delay, overtime=max(0., self.cum_time - shift_duration), overload=max(0., self.max_load - capacity), fairness_violation=fairness_violation)
+    def get_cost(self, capacity: int, shift_duration: float, fairness_violation: float):
+        return Cost(travel_time=self.cum_travel_time, delay=self.cum_delay, overtime=max(0., self.cum_time - shift_duration), overload=max(0, self.max_load - capacity), fairness_violation=fairness_violation)
 
     @staticmethod
     def FromVertex(vertex: Vertex):
-        return Label(cum_time=0., cum_travel_time=0., cum_load=vertex.items, earliest_arrival_time=vertex.tw_start,
-                     latest_arrival_time=vertex.tw_end, cum_delay=0., max_load=0.)
+        return Label(cum_time=0., cum_travel_time=0., cum_load=vertex.items, activity_start_time=vertex.tw_start, earliest_arrival_time=vertex.tw_start,
+                     latest_arrival_time=vertex.tw_end, cum_delay=0., max_load=0)
 
 def concatenate(prefix: Label, postfix: Label, travel_time: float) -> Label:
     load = prefix.cum_load + postfix.cum_load
@@ -69,6 +80,7 @@ def concatenate(prefix: Label, postfix: Label, travel_time: float) -> Label:
         cum_time=prefix.cum_time + postfix.cum_time + travel_time + waiting_time,
         cum_travel_time=prefix.cum_travel_time+postfix.cum_travel_time+travel_time,
         cum_load=load,
+        activity_start_time=max(prefix.activity_start_time + travel_time, postfix.earliest_arrival_time),
         earliest_arrival_time=max(postfix.earliest_arrival_time - delta, prefix.earliest_arrival_time) - waiting_time,
         latest_arrival_time=min(postfix.latest_arrival_time - delta, prefix.latest_arrival_time) + delay,
         cum_delay=prefix.cum_delay+postfix.cum_delay+delay,
@@ -112,11 +124,19 @@ class Route:
         return route
 
     def update(self):
-        for node_id, label in zip(range(1, len(self._nodes)), self.calculate_forward_sequence(self._nodes[0], self._nodes[-1])):
-            self._nodes[node_id].forward_label = label
+        for prev_node, next_node in itertools.pairwise(self._nodes):
+            next_node.forward_label = concatenate(prev_node.forward_label, Label.FromVertex(next_node.vertex),
+                                                  self._instance.get_travel_time(prev_node.vertex, next_node.vertex))
+            assert next_node.forward_label.activity_start_time >= prev_node.vertex.tw_start
+            assert next_node.forward_label.activity_start_time >= next_node.vertex.tw_start
+        # Backwards node may have changes
         self._nodes[-1].backward_label = Label.FromVertex(self._nodes[-1].vertex)
-        for node_id, label in zip(range(len(self._nodes)-2, -1, -1), self.calculate_backward_sequence(self._nodes[-1], self._nodes[0])):
-            self._nodes[node_id].backward_label = label
+        # prev_node is before next_node viewed from the first node, i.e., in regular and not reversed order:
+        # [first_node, ..., prev_node, next_node, ..., last_node]
+        for next_node, prev_node in itertools.pairwise(reversed(self._nodes)):
+            # We use the "forward" (prev, next) travel time here. This avoids issues with asymmetric distance matrices. (real world routing)
+            prev_node.backward_label = concatenate(Label.FromVertex(prev_node.vertex), next_node.backward_label,
+                                                   self._instance.get_travel_time(prev_node.vertex, next_node.vertex))
 
     def insert(self, request: Request, pickup_at: int, dropoff_at: int):
         assert pickup_at <= dropoff_at
@@ -170,7 +190,11 @@ class Route:
         return len(self._nodes)
 
     def __contains__(self, vertex: Vertex):
-        return vertex in self._nodes
+        assert isinstance(vertex, Vertex)
+        for n in self._nodes:
+            if n.vertex.vertex_id == vertex.vertex_id:
+                return True
+        return False
 
     @property
     def feasible(self):
@@ -397,7 +421,7 @@ class Solution:
 
     @property
     def cost(self) -> Cost:
-        return sum((r.cost for r in self.routes), Cost(0.,0.,0.,0.,0.))
+        return sum((r.cost for r in self.routes), Cost(0.,0.,0.,0,0.))
 
     @property
     def feasible(self):

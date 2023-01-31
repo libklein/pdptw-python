@@ -33,7 +33,7 @@ class RelocateMove:
 class Solver:
     def __init__(self, instance: Instance):
         self._instance = instance
-        self._obj_factor = PenaltyFactors(1.,1.,1.,100000.)
+        self._obj_factor = PenaltyFactors(100.,1000.,1000.,10000.)
         self._penalty = copy(self._obj_factor)
 
         self._avg_requests_per_driver = len(instance.requests)/len(instance.vehicles)
@@ -88,7 +88,6 @@ class Solver:
 
     def solve(self):
         sol = self._construct_initial_solution()
-        return sol
         # Improve with local search
         self._local_search(sol)
         return sol
