@@ -66,13 +66,6 @@ class Solver:
             best_move.apply(solution)
             best_move.update()
 
-            req_set = set()
-            for r in solution.routes:
-                for req in r.requests:
-                    if req in req_set:
-                        raise ValueError
-                    req_set.add(req)
-
             print(f"New cost: {solution.get_objective(self._penalty)}, prev cost: {prev_cost}, expected: {expected_cost}, delta: {abs(prev_cost-expected_cost)}")
 
     def _construct_initial_solution(self) -> Solution:
@@ -95,8 +88,7 @@ class Solver:
 
     def solve(self):
         sol = self._construct_initial_solution()
-        print(sol)
+        return sol
         # Improve with local search
         self._local_search(sol)
-        print(sol)
         return sol

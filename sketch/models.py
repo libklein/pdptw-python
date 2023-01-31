@@ -80,16 +80,18 @@ def compute_distance_matrix(distance: Callable[[Coordinate, tuple[float, float]]
 @dataclass(frozen=True)
 class Vehicle:
     vehicle_id: int
-    start_time: int
-    end_time: int
+    start_time: float
+    end_time: float
     start: Vertex
     capacity: int
+    driver: Driver
 
 @dataclass(frozen=True)
 class Request:
     pickup: Vertex
     dropoff: Vertex
     num_items: int
+    order: Order
 
     def __post_init__(self):
         assert self.num_items > 0
@@ -144,14 +146,12 @@ def create_instance(order_file: Path, driver_file: Path) -> Instance:
     orders: list[Order] = parse_orders(order_file)
     drivers: list[Driver] = parse_drivers(driver_file)
 
-    latest_driver_shift = max(map(lambda x: x.shift_end_sec, drivers))
-
     # Create vertices
     vertices = [
         Vertex(vertex_id=v_id, vertex_type='driver', tw_start=driver.shift_start_sec, tw_end=driver.shift_end_sec, lat_long=(driver.start_location_lat, driver.start_location_long), items=0) for v_id, driver in enumerate(drivers)
     ]
 
-    vehicles = [Vehicle(vehicle_id=i, start_time=driver_start.tw_start, end_time=driver_start.tw_end, start=driver_start, capacity=driver.capacity) for i, (driver, driver_start) in enumerate(zip(drivers, vertices))]
+    vehicles = [Vehicle(vehicle_id=i, start_time=driver_start.tw_start, end_time=driver_start.tw_end, start=driver_start, capacity=driver.capacity, driver=driver) for i, (driver, driver_start) in enumerate(zip(drivers, vertices))]
 
     requests: list[Request] = []
 
@@ -164,7 +164,7 @@ def create_instance(order_file: Path, driver_file: Path) -> Instance:
                                lat_long=(order.customer_lat, order.customer_long), items=-order.no_of_items))
 
         pickup, dropoff = vertices[-2], vertices[-1]
-        requests.append(Request(pickup=pickup, dropoff=dropoff, num_items=order.no_of_items))
+        requests.append(Request(pickup=pickup, dropoff=dropoff, num_items=order.no_of_items, order=order))
 
     # Create distance matrix
     travel_times = compute_distance_matrix(partial(compute_travel_time, speed_kmh=15), [x.lat_long for x in vertices])
