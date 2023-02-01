@@ -1,43 +1,52 @@
 from csv import DictReader
 from dataclasses import dataclass, fields
+from enum import IntEnum
 from functools import partial
 from math import radians, cos, sin, asin, sqrt
 from pathlib import Path
 from typing import TypeVar, Type, Callable
 
-Coordinate = tuple[float, float]
+# Pair of (lat, long)
+Degrees = float
+Location = tuple[Degrees, Degrees]
+Timestamp = float
+Duration = float
+
+
+class VertexType(IntEnum):
+    START = 0
+    PICKUP = 1
+    DROPOFF = 2
 
 
 @dataclass(frozen=True)
 class Order:
     order_id: int
-    restaurant_lat: float
-    restaurant_long: float
-    customer_lat: float
-    customer_long: float
+    restaurant_location: Location
+    customer_location: Location
     no_of_items: int
-    prep_duration_sec: float
-    preferred_otd_sec: float
+    prep_duration_sec: Duration
+    preferred_otd_sec: Timestamp
 
 
 @dataclass(frozen=True)
 class Driver:
     driver_id: int
-    shift_start_sec: float
-    shift_end_sec: float
-    start_location_lat: float
-    start_location_long: float
-    capacity: int
+    shift_start_sec: Timestamp
+    shift_end_sec: Timestamp
+    start_location: Location
+    vehicle_capacity: int
 
 
 @dataclass(frozen=True)
 class Vertex:
     vertex_id: int
-    vertex_type: str
-    tw_start: float
-    tw_end: float
-    lat_long: Coordinate
-    items: int
+    vertex_type: VertexType
+    tw_start: Timestamp
+    tw_end: Timestamp
+    location: Location
+    # The number of items available at this vertex. Negative for dropoff vertices.
+    no_of_items: int
 
     def __str__(self):
         prefix = 'S'
@@ -51,21 +60,27 @@ class Vertex:
     def __post_init__(self):
         assert sum(map(int, (self.is_start, self.is_pickup, self.is_dropoff))) == 1
         assert self.tw_start <= self.tw_end
+        if self.is_start:
+            assert self.no_of_items == 0
+        elif self.is_dropoff:
+            assert self.no_of_items < 0
+        else:
+            assert self.no_of_items > 0
 
     @property
     def is_start(self) -> bool:
-        return self.vertex_type == 'driver'
+        return self.vertex_type == VertexType.START
 
     @property
     def is_pickup(self) -> bool:
-        return self.vertex_type == 'pickup'
+        return self.vertex_type == VertexType.PICKUP
 
     @property
     def is_dropoff(self) -> bool:
-        return self.vertex_type == 'dropoff'
+        return self.vertex_type == VertexType.DROPOFF
 
 
-def compute_distance(from_lat_lon: Coordinate, to_lat_lon: tuple[float, float]) -> float:
+def compute_distance(from_lat_lon: Location, to_lat_lon: tuple[float, float]) -> float:
     lat1, lon1, lat2, lon2 = radians(from_lat_lon[0]), radians(from_lat_lon[1]), radians(to_lat_lon[0]), radians(
         to_lat_lon[1])
 
@@ -81,7 +96,7 @@ def compute_travel_time(*args, speed_kmh: float, **kwargs) -> float:
     return (compute_distance(*args, **kwargs) / speed_kmh) * 3600
 
 
-def compute_distance_matrix(distance: Callable[[Coordinate, tuple[float, float]], float],
+def compute_distance_matrix(distance: Callable[[Location, tuple[float, float]], float],
                             coordinates: list[tuple[float, float]]) -> list[list[float]]:
     return [[distance(i, j) for j in coordinates] for i in coordinates]
 
@@ -89,12 +104,16 @@ def compute_distance_matrix(distance: Callable[[Coordinate, tuple[float, float]]
 @dataclass(frozen=True)
 class Vehicle:
     vehicle_id: int
-    start_time: float
-    end_time: float
     start: Vertex
-    capacity: int
     driver: Driver
 
+    @property
+    def capacity(self):
+        return self.driver.vehicle_capacity
+
+    @property
+    def end_time(self):
+        return self.driver.shift_end_sec
 
 @dataclass(frozen=True)
 class Request:
@@ -108,8 +127,8 @@ class Request:
         assert self.pickup.is_pickup
         assert self.dropoff.is_dropoff
 
-        assert self.pickup.items == self.num_items
-        assert self.pickup.items == -self.dropoff.items
+        assert self.pickup.no_of_items == self.num_items
+        assert self.pickup.no_of_items == -self.dropoff.no_of_items
 
 
 class Instance:
@@ -126,30 +145,42 @@ class Instance:
     @property
     def vehicles(self):
         return self._vehicles
+
     @property
     def avg_requests_per_driver(self):
         return len(self._requests) / len(self._vehicles)
 
-T = TypeVar('T', Type[Order], Type[Driver])
+
+T = TypeVar('T')
 
 
-def construct_typed(cls: T, **data):
-    _fields = {x.name: x for x in fields(cls)}
-    return cls(**{key: _fields[key].type(val) for key, val in data.items()})
-
-
-def parse(cls: T, file: Path):
+def parse(factory: Callable[[dict[str, str]], T], file: Path) -> list[T]:
     with file.open() as fh:
         reader: DictReader = DictReader(fh)
-        return [construct_typed(cls, **x) for x in reader]
+        return [factory(x) for x in reader]
+
+
+def parse_order(data: dict[str, str]) -> Order:
+    return Order(order_id=int(data['order_id']), restaurant_location=(Degrees(data['restaurant_lat']),
+                                                                      Degrees(data['restaurant_long'])),
+                 customer_location=(Degrees(data['restaurant_lat']), Degrees(data['restaurant_long'])),
+                 no_of_items=int(data['no_of_items']), prep_duration_sec=Timestamp(data['prep_duration_sec']),
+                 preferred_otd_sec=Timestamp(data['preferred_otd_sec']))
 
 
 def parse_orders(file: Path) -> list[Order]:
-    return parse(Order, file)
+    return parse(parse_order, file)
+
+
+def parse_driver(data: dict[str, str]) -> Driver:
+    return Driver(int(data['driver_id']), shift_start_sec=Timestamp(data['shift_start_sec']),
+                  shift_end_sec=Timestamp(data['shift_end_sec']), start_location=(Degrees(data['start_location_lat']),
+                                                                                  Degrees(data['start_location_long'])),
+                  vehicle_capacity=int(data['capacity']))
 
 
 def parse_drivers(file: Path) -> list[Driver]:
-    return parse(Driver, file)
+    return parse(parse_driver, file)
 
 
 def create_instance(order_file: Path, driver_file: Path) -> Instance:
@@ -158,30 +189,29 @@ def create_instance(order_file: Path, driver_file: Path) -> Instance:
 
     # Create vertices
     vertices = [
-        Vertex(vertex_id=v_id, vertex_type='driver', tw_start=driver.shift_start_sec, tw_end=driver.shift_end_sec,
-               lat_long=(driver.start_location_lat, driver.start_location_long), items=0) for v_id, driver in
+        Vertex(vertex_id=v_id, vertex_type=VertexType.START, tw_start=driver.shift_start_sec, tw_end=driver.shift_end_sec,
+               location=driver.start_location, no_of_items=0) for v_id, driver in
         enumerate(drivers)
     ]
 
     vehicles = [
-        Vehicle(vehicle_id=i, start_time=driver_start.tw_start, end_time=driver_start.tw_end, start=driver_start,
-                capacity=driver.capacity, driver=driver) for i, (driver, driver_start) in
-        enumerate(zip(drivers, vertices))]
+        Vehicle(vehicle_id=driver.driver_id, start=driver_start, driver=driver)
+        for driver, driver_start in zip(drivers, vertices)]
 
     requests: list[Request] = []
 
     for order in orders:
-        vertices.append(Vertex(vertex_id=len(vertices), vertex_type='pickup',
+        vertices.append(Vertex(vertex_id=len(vertices), vertex_type=VertexType.PICKUP,
                                tw_start=order.prep_duration_sec, tw_end=order.preferred_otd_sec,
-                               lat_long=(order.restaurant_lat, order.restaurant_long), items=order.no_of_items))
-        vertices.append(Vertex(vertex_id=len(vertices), vertex_type='dropoff',
+                               location=order.restaurant_location, no_of_items=order.no_of_items))
+        vertices.append(Vertex(vertex_id=len(vertices), vertex_type=VertexType.DROPOFF,
                                tw_start=order.prep_duration_sec, tw_end=order.preferred_otd_sec,
-                               lat_long=(order.customer_lat, order.customer_long), items=-order.no_of_items))
+                               location=order.customer_location, no_of_items=-order.no_of_items))
 
         pickup, dropoff = vertices[-2], vertices[-1]
         requests.append(Request(pickup=pickup, dropoff=dropoff, num_items=order.no_of_items, order=order))
 
     # Create distance matrix
-    travel_times = compute_distance_matrix(partial(compute_travel_time, speed_kmh=15), [x.lat_long for x in vertices])
+    travel_times = compute_distance_matrix(partial(compute_travel_time, speed_kmh=15), [x.location for x in vertices])
 
     return Instance(vertices, travel_times, vehicles, requests)

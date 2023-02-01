@@ -10,12 +10,13 @@ from .subsolvers.local_search.operators.relocate_operator import RelocateOperato
 
 
 class Solver:
-    def __init__(self, instance: Instance):
+    def __init__(self, instance: Instance, objective_function_factors: PenaltyFactors):
         self._instance = instance
         # TODO Termination criterion
         # TODO Come up with fairness factor
-        self._obj_factor = PenaltyFactors(10., 1., 1., 1000.)
-        self._penalty = PenaltyFactors(1., 10000., 10000., 1000.)
+        self._obj_factor = objective_function_factors
+        self._penalty = PenaltyFactors(delay_factor=self._obj_factor.delay_factor, overtime_factor=10000.,
+                                       overload_factor=10000., fairness_factor=self._obj_factor.fairness_factor)
 
         self._evaluation = Evaluation(self._instance, self._penalty, self._instance.avg_requests_per_driver)
 
@@ -39,7 +40,7 @@ class Solver:
             moves = (move
                      for route in sol.routes
                      for at in range(1, len(route) + 1)
-                     for move in self._evaluation.calculate_insertion(next_request, route, at))
+                     for move in self._evaluation.calculate_insertion(of=next_request, into_route=route, at=at))
             best_move = min(moves, key=lambda x: x.delta_cost)
             best_move.apply(sol)
 
@@ -66,7 +67,7 @@ class Solver:
         # Use wall clock time
         for candidate_solution in self._generate_solutions():
             candidate_objective = candidate_solution.get_objective(self._obj_factor)
-            if (best_obj := self._best_solution.get_objective(self._obj_factor)) > candidate_objective:
+            if self._best_solution.get_objective(self._obj_factor) > candidate_objective:
                 self._best_solution = deepcopy(candidate_solution)
                 yield self._best_solution
             if candidate_solution.feasible and (

@@ -76,7 +76,7 @@ class Label:
 
     @staticmethod
     def FromVertex(vertex: Vertex):
-        return Label(cum_time=0., cum_travel_time=0., cum_load=vertex.items, activity_start_time=vertex.tw_start,
+        return Label(cum_time=0., cum_travel_time=0., cum_load=vertex.no_of_items, activity_start_time=vertex.tw_start,
                      earliest_arrival_time=vertex.tw_start,
                      latest_arrival_time=vertex.tw_end, cum_delay=0., max_load=0)
 

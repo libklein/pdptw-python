@@ -23,12 +23,12 @@ def plot(inst: Instance):
         'dropoff': 'blue'
     }
 
-    plt.scatter(x=[x.lat_long[0] for x in inst.vertices], y=[x.lat_long[1] for x in inst.vertices],
+    plt.scatter(x=[x.location[0] for x in inst.vertices], y=[x.location[1] for x in inst.vertices],
                 c=[c_map[x.vertex_type] for x in inst.vertices])
 
     for r in inst.requests:
-        plt.annotate('', xy=(r.dropoff.lat_long[0], r.dropoff.lat_long[1]),
-                     xytext=(r.pickup.lat_long[0], r.pickup.lat_long[1]), xycoords='data',
+        plt.annotate('', xy=(r.dropoff.location[0], r.dropoff.location[1]),
+                     xytext=(r.pickup.location[0], r.pickup.location[1]), xycoords='data',
                      arrowprops=dict(arrowstyle='->'))
 
     plt.show()
@@ -72,7 +72,7 @@ def test_removal_evaluation(instance: Instance, penalty_factors: PenaltyFactors,
     exact_evaluation = ExactEvaluation(instance, penalty_factors=penalty_factors,
                                        target_fairness=requests_per_driver(instance))
     sol = Solution(instance=instance)
-    avg_req_per_route = sum(x.num_items for x in instance.requests) / sum(x.capacity for x in instance.vehicles)
+    avg_req_per_route = sum(x.num_items for x in instance.requests) / sum(x.vehicle_capacity for x in instance.vehicles)
     # Test removal - create random route
     for test_num in range(n_tests):
         print(f"\rRemoval test {test_num}/{n_tests}", end='', flush=True)
@@ -102,7 +102,7 @@ def test_insertion_evaluation(instance: Instance, penalty_factors: PenaltyFactor
     exact_evaluation = ExactEvaluation(instance, penalty_factors=penalty_factors,
                                        target_fairness=requests_per_driver(instance))
     sol = Solution(instance=instance)
-    avg_req_per_route = sum(x.num_items for x in instance.requests) / sum(x.capacity for x in instance.vehicles)
+    avg_req_per_route = sum(x.num_items for x in instance.requests) / sum(x.vehicle_capacity for x in instance.vehicles)
     # Test removal - create random route
     for test_num in range(n_tests):
         print(f"\rInsertion test {test_num}/{n_tests}", end='', flush=True)

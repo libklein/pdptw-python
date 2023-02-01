@@ -19,7 +19,7 @@ def cli():
 
     parser.add_argument('--delay-factor', action='store', dest='delay_factor', type=float, default=1.,
                         help='Weight of the delay.')
-    parser.add_argument('--fairness-factor', action='store', dest='fairness_factor', type=float, default=1.,
+    parser.add_argument('--fairness-factor', action='store', dest='fairness_factor', type=float, default=1000.,
                         help='Weight of the fairness.')
 
     cli_args = parser.parse_args().__dict__
@@ -51,7 +51,7 @@ def solve(driver_file: Path, order_file: Path, time_limit_sec: float, delay_fact
     objective_coefficients = PenaltyFactors(delay_factor=delay_factor, overload_factor=0.,
                                             overtime_factor=0., fairness_factor=fairness_factor)
 
-    solver = Solver(inst)
+    solver = Solver(instance=inst, objective_function_factors=objective_coefficients)
     best_sol = None
     for sol in filter(lambda sol: sol.feasible, solver.solve()):
         best_sol = sol

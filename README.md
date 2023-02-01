@@ -30,11 +30,14 @@ This allows to travel through infeasible solution spaces. We adapt these penalti
 We note that allowing only feasible moves instead is straightforward in our implementation.
 We define neighborhood moves on the request level, that is, move pickup and delivery locations together, such that Pickup & Delivery vertices cannot be mismatched.
 
-We evaluate moves in constant time tracking state of partial routes...
+We evaluate moves in constant time by tracking the state of partial routes.
 This is straightforward for the OtdViolation, the capacity violation, distance, and maximum shift duration. 
 Evaluating a move's impact on **courier fairness** is more challenging, as fairness is defined on the solution and not the route level. 
 We attempt to satisfy it on a route-level by computing the optimal average utilization (orders per driver) and penalizing moves accordingly.
 We chose to not normalize the deviation from the optimal average utilization as this skews the objective, i.e., the number of orders assigned determines fairness, not the average time spent en-route.
+Finally, we always apply the first improving move found during the local search. This allows a efficient caching mechanism: 
+we track the modification time of each route and the last time an operator evaluated moves for that route. This allows to, 
+skip evaluating moves where all involved routes have not changed since the last evaluation.
 
 
 
