@@ -6,7 +6,7 @@ from pathlib import Path
 import argparse
 
 from order_dispatcher.models import create_instance, Request, Driver, Timestamp
-from order_dispatcher.solution import Solution, PenaltyFactors
+from order_dispatcher.models.solution import Solution, PenaltyFactors
 from order_dispatcher.solver import Solver
 
 

@@ -6,7 +6,8 @@ from sys import argv
 from typing import Iterable
 
 from models import create_instance, Instance, Request, requests_per_driver
-from solution import Solution, Route, Evaluation, ExactEvaluation, PenaltyFactors
+from order_dispatcher.models.solution import Solution, Route, PenaltyFactors
+from order_dispatcher.models import ConstantTimeEvaluation, ExactEvaluation
 
 driver_file = Path(argv[1])
 order_file = Path(argv[2])
@@ -67,8 +68,8 @@ def insert_requests_randomly(route: Route, requests: Iterable[Request]) -> Route
 
 
 def test_removal_evaluation(instance: Instance, penalty_factors: PenaltyFactors, n_tests=1000):
-    evaluation = Evaluation(instance=inst, penalty_factors=penalty_factors,
-                            target_fairness=requests_per_driver(instance))
+    evaluation = ConstantTimeEvaluation(instance=inst, penalty_factors=penalty_factors,
+                                        target_fairness=requests_per_driver(instance))
     exact_evaluation = ExactEvaluation(instance, penalty_factors=penalty_factors,
                                        target_fairness=requests_per_driver(instance))
     sol = Solution(instance=instance)
@@ -97,8 +98,8 @@ def test_removal_evaluation(instance: Instance, penalty_factors: PenaltyFactors,
 
 
 def test_insertion_evaluation(instance: Instance, penalty_factors: PenaltyFactors, n_tests=1000):
-    evaluation = Evaluation(instance=inst, penalty_factors=penalty_factors,
-                            target_fairness=requests_per_driver(instance))
+    evaluation = ConstantTimeEvaluation(instance=inst, penalty_factors=penalty_factors,
+                                        target_fairness=requests_per_driver(instance))
     exact_evaluation = ExactEvaluation(instance, penalty_factors=penalty_factors,
                                        target_fairness=requests_per_driver(instance))
     sol = Solution(instance=instance)

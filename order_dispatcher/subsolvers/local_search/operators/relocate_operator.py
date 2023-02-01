@@ -2,7 +2,8 @@
 import time
 from dataclasses import dataclass
 
-from order_dispatcher.solution import RemovalMove, InsertionMove, Evaluation, Solution, Route
+from order_dispatcher.models import Solution, Route
+from order_dispatcher.evaluation import Evaluation, RemovalMove, InsertionMove
 
 
 @dataclass
@@ -25,10 +26,6 @@ class RelocateMove:
     def apply(self, solution: Solution):
         self.removal_move.apply(solution)
         self.insertion_move.apply(solution)
-
-    def update(self):
-        self.removal_move.update()
-        self.insertion_move.update()
 
 
 class RelocateOperator:

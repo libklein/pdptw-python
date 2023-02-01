@@ -4,7 +4,7 @@ from copy import copy, deepcopy
 from typing import Protocol, Optional, Iterator
 
 from order_dispatcher.models import Request
-from order_dispatcher.solution import Solution
+from order_dispatcher.models.solution import Solution
 
 
 class DestroyOperator(Protocol):

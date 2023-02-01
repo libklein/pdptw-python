@@ -1,8 +1,8 @@
 # coding=utf-8
 import random
 
-from order_dispatcher.models import Instance, Request
-from order_dispatcher.solution import Solution
+from order_dispatcher.models import Request
+from order_dispatcher.models.solution import Solution
 
 
 class RandomDestroyOperator:

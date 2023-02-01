@@ -4,7 +4,7 @@ from copy import copy
 from typing import Protocol, Iterable, Optional
 
 from order_dispatcher.models import Instance
-from order_dispatcher.solution import PenaltyFactors, Solution
+from order_dispatcher.models.solution import PenaltyFactors, Solution
 
 
 class Move(Protocol):

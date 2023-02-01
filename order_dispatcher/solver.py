@@ -3,7 +3,8 @@ import time
 from copy import copy, deepcopy
 
 from order_dispatcher.models import Instance, Duration
-from order_dispatcher.solution import Solution, Evaluation, PenaltyFactors
+from order_dispatcher.evaluation import ConstantTimeEvaluation
+from order_dispatcher.models.solution import Solution, PenaltyFactors
 from order_dispatcher.subsolvers import LocalSearchSolver, LargeNeighborhood
 from order_dispatcher.operators.best_insertion_operator import BestInsertionOperator
 from order_dispatcher.operators.random_destroy_operator import RandomDestroyOperator
@@ -23,16 +24,16 @@ class Solver:
         self._penalty = PenaltyFactors(delay_factor=self._obj_factor.delay_factor, overtime_factor=10000.,
                                        overload_factor=10000., fairness_factor=self._obj_factor.fairness_factor)
 
-        self._evaluation = Evaluation(self._instance, penalty_factors=self._penalty,
-                                      target_fairness=self._instance.avg_requests_per_driver)
+        self._evaluation = ConstantTimeEvaluation(self._instance, penalty_factors=self._penalty,
+                                                  target_fairness=self._instance.avg_requests_per_driver)
 
         self._local_search_solver = LocalSearchSolver(self._instance, self._penalty,
                                                       [RelocateOperator(self._evaluation)])
         self._large_neighborhood = LargeNeighborhood(
             ruin_operators=[RandomDestroyOperator(fraction_to_remove=0.2)],
             recreate_operators=[
-                BestInsertionOperator(Evaluation(self._instance, penalty_factors=self._obj_factor,
-                                                 target_fairness=self._instance.avg_requests_per_driver))])
+                BestInsertionOperator(ConstantTimeEvaluation(self._instance, penalty_factors=self._obj_factor,
+                                                             target_fairness=self._instance.avg_requests_per_driver))])
 
         self._best_solution = None
         self._best_feasible_solution = None
