@@ -13,6 +13,9 @@ from order_dispatcher.models import Instance, Vertex, Request, Vehicle, Duration
 # It could make more sense to have a parent class, "objective weights" that this class extends with factors for overtime and overload.
 @dataclass(slots=True)
 class PenaltyFactors:
+    """
+    Represents the factors
+    """
     delay_factor: float
     overtime_factor: float
     overload_factor: float
@@ -21,10 +24,18 @@ class PenaltyFactors:
 
 @dataclass(slots=True, frozen=True)
 class Cost:
+    """
+    Captures the values of individual components of the generalized cost function. Decouples labels.
+    """
+    # Total travel time
     travel_time: Duration
+    # The total OtD
     delay: Duration
+    # Overtime required to serve the route, i.e., shift constraint violation
     overtime: Duration
+    # Number of items loaded beyond the vehicle's capacity
     overload: int
+    # Absolute deviation from the fairest number of requests per driver.
     fairness_violation: float
 
     def __post_init__(self):
@@ -64,7 +75,7 @@ class Label:
     # The cumulated travel time up to this point
     cum_travel_time: Duration
     # The cumulated (i.e., current) load allocated by picked up/delivered items
-    cum_load: Duration
+    cum_load: int
 
     # Actual starting time of the activity
     activity_start_time: Timestamp
@@ -78,7 +89,7 @@ class Label:
     # The maximum load allocated by picked up/delivered items
     max_load: int
 
-    def get_cost(self, capacity: int, shift_duration: float, fairness_violation: float):
+    def get_cost(self, capacity: int, shift_duration: Duration, fairness_violation: float):
         return Cost(travel_time=self.cum_travel_time, delay=self.cum_delay,
                     overtime=max(0., self.cum_time - shift_duration), overload=max(0, self.max_load - capacity),
                     fairness_violation=fairness_violation)
@@ -90,7 +101,7 @@ class Label:
                      latest_arrival_time=vertex.tw_end, cum_delay=0., max_load=0)
 
 
-def concatenate(prefix: Label, postfix: Label, travel_time: float) -> Label:
+def concatenate(prefix: Label, postfix: Label, travel_time: Duration) -> Label:
     load = prefix.cum_load + postfix.cum_load
     delta = prefix.cum_time - prefix.cum_delay + travel_time
     waiting_time = max(postfix.earliest_arrival_time - delta - prefix.latest_arrival_time, 0.)
@@ -430,7 +441,6 @@ class Solution:
             Route(self._instance, vehicle) for vehicle in self._instance.vehicles
         ]
 
-    # TODO Replace with copy?
     def __deepcopy__(self, memodict=None):
         if memodict is None:
             memodict = {}
@@ -449,7 +459,7 @@ class Solution:
         return next(r for r in self.routes if of in r)
 
     def __str__(self):
-        return f'Solution with cost {self.cost} {self.feasible}:\n\t' + '\n\t'.join(map(str, self.routes))
+        return f'Solution with objective components {self.cost}:\n\t' + '\n\t'.join(map(str, self.routes))
 
     @property
     def cost(self) -> Cost:
