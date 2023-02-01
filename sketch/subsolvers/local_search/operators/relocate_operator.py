@@ -30,6 +30,7 @@ class RelocateMove:
         self.removal_move.update()
         self.insertion_move.update()
 
+
 class RelocateOperator:
     def __init__(self, evaluation: Evaluation):
         self._evaluation = evaluation

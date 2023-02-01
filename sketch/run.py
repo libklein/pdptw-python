@@ -1,13 +1,11 @@
-import math
-from copy import deepcopy
+from pathlib import Path
+import random
 from pathlib import Path
 from sys import argv
-from typing import Iterable
 
-from models import create_instance, Instance, Request, Driver
+from models import create_instance, Request, Driver
+from solution import Solution
 from solver import Solver
-from solution import Solution, Route, Node, Label, Evaluation
-import random
 
 # Note, i use the global random here. I'd inject instances of Random() in production code
 random.seed(0)
@@ -22,10 +20,12 @@ solver = Solver(inst)
 
 print(best_sol)
 
+
 def find_request_data(solution: Solution, of: Request) -> tuple[Driver, float, float]:
     route = solution.find_route(of.pickup)
     pickup_node, dropoff_node = route.get_node_of(of.pickup), route.get_node_of(of.dropoff)
     return route._vehicle.driver, pickup_node.forward_label.activity_start_time, dropoff_node.forward_label.activity_start_time
+
 
 if not best_sol.feasible:
     raise RuntimeError("Failed to find a feasible solution")

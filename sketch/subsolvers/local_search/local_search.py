@@ -1,11 +1,10 @@
 # coding=utf-8
 import itertools
 from copy import copy
-from dataclasses import dataclass
 from typing import Protocol, Iterable, Optional
 
 from models import Instance
-from solution import PenaltyFactors, Solution, Evaluation, RemovalMove, InsertionMove
+from solution import PenaltyFactors, Solution
 
 
 class Move(Protocol):
@@ -64,9 +63,9 @@ class LocalSearchSolver:
             # Apply
             prev_cost = solution.get_objective(self._penalty)
             expected_cost = prev_cost + move.delta_cost
-            #print("Applying move", move.delta_cost, "to solution with cost", prev_cost)
+            # print("Applying move", move.delta_cost, "to solution with cost", prev_cost)
             move.apply(solution)
             move.update()
             yield
-            #print(f"New cost: {solution.get_objective(self._penalty)}, prev cost: {prev_cost}, expected: {expected_cost}, delta: {abs(prev_cost - expected_cost)}")
+            # print(f"New cost: {solution.get_objective(self._penalty)}, prev cost: {prev_cost}, expected: {expected_cost}, delta: {abs(prev_cost - expected_cost)}")
             assert abs(expected_cost - solution.get_objective(self._penalty)) <= 0.01

@@ -1,10 +1,10 @@
 # coding=utf-8
+import random
 from copy import copy, deepcopy
-from typing import Protocol, Optional, Iterable, Generator, Iterator
+from typing import Protocol, Optional, Iterator
 
 from models import Instance, Request
 from solution import Solution, Evaluation
-import random
 
 
 class DestroyOperator(Protocol):
@@ -41,7 +41,7 @@ class BestInsertionOperator:
         for next_request in missing_requests:
             moves = (move
                      for route in solution.routes
-                     for at in range(1, len(route)+1)
+                     for at in range(1, len(route) + 1)
                      for move in self._evaluation.calculate_insertion(next_request, route, at))
             best_move = min(moves, key=lambda x: x.delta_cost)
             best_move.apply(solution)

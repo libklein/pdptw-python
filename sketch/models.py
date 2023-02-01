@@ -1,11 +1,12 @@
-from dataclasses import dataclass, fields
-from typing import TypeVar, Type, Callable
 from csv import DictReader
-from pathlib import Path
-from math import radians, cos, sin, asin, sqrt
+from dataclasses import dataclass, fields
 from functools import partial
+from math import radians, cos, sin, asin, sqrt
+from pathlib import Path
+from typing import TypeVar, Type, Callable
 
 Coordinate = tuple[float, float]
+
 
 @dataclass(frozen=True)
 class Order:
@@ -18,6 +19,7 @@ class Order:
     prep_duration_sec: float
     preferred_otd_sec: float
 
+
 @dataclass(frozen=True)
 class Driver:
     driver_id: int
@@ -26,6 +28,7 @@ class Driver:
     start_location_lat: float
     start_location_long: float
     capacity: int
+
 
 @dataclass(frozen=True)
 class Vertex:
@@ -44,9 +47,9 @@ class Vertex:
             prefix = 'D'
 
         return f'{prefix}{self.vertex_id}'
-    
+
     def __post_init__(self):
-        assert sum(map(int, (self.is_start,self.is_pickup,self.is_dropoff))) == 1
+        assert sum(map(int, (self.is_start, self.is_pickup, self.is_dropoff))) == 1
         assert self.tw_start <= self.tw_end
 
     @property
@@ -61,21 +64,27 @@ class Vertex:
     def is_dropoff(self) -> bool:
         return self.vertex_type == 'dropoff'
 
-def compute_distance(from_lat_lon: Coordinate, to_lat_lon: tuple[float, float]) -> float:
-    lat1, lon1, lat2, lon2 = radians(from_lat_lon[0]), radians(from_lat_lon[1]), radians(to_lat_lon[0]), radians(to_lat_lon[1])
 
-    dlon = lon2 - lon1 
-    dlat = lat2 - lat1 
-    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
-    c = 2 * asin(sqrt(a)) 
+def compute_distance(from_lat_lon: Coordinate, to_lat_lon: tuple[float, float]) -> float:
+    lat1, lon1, lat2, lon2 = radians(from_lat_lon[0]), radians(from_lat_lon[1]), radians(to_lat_lon[0]), radians(
+        to_lat_lon[1])
+
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+    a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
+    c = 2 * asin(sqrt(a))
     earth_radius = 5300
     return c * earth_radius
+
 
 def compute_travel_time(*args, speed_kmh: float, **kwargs) -> float:
     return (compute_distance(*args, **kwargs) / speed_kmh) * 3600
 
-def compute_distance_matrix(distance: Callable[[Coordinate, tuple[float, float]],float], coordinates: list[tuple[float, float]]) -> list[list[float]]:
+
+def compute_distance_matrix(distance: Callable[[Coordinate, tuple[float, float]], float],
+                            coordinates: list[tuple[float, float]]) -> list[list[float]]:
     return [[distance(i, j) for j in coordinates] for i in coordinates]
+
 
 @dataclass(frozen=True)
 class Vehicle:
@@ -85,6 +94,7 @@ class Vehicle:
     start: Vertex
     capacity: int
     driver: Driver
+
 
 @dataclass(frozen=True)
 class Request:
@@ -101,14 +111,17 @@ class Request:
         assert self.pickup.items == self.num_items
         assert self.pickup.items == -self.dropoff.items
 
+
 class Instance:
-    def __init__(self, vertices: list[Vertex], travel_times: list[list[float]], vehicles: list[Vehicle], requests: list[Request]):
+    def __init__(self, vertices: list[Vertex], travel_times: list[list[float]], vehicles: list[Vehicle],
+                 requests: list[Request]):
         self.vertices = vertices
         self.travel_times = travel_times
         self.vehicles = vehicles
         self.requests = requests
 
-        self._adjacency = [sorted(filter(lambda x: x.vertex_id == i.vertex_id, self.vertices), key=lambda j: self.get_travel_time(i, j)) for i in self.vertices]
+        self._adjacency = [sorted(filter(lambda x: x.vertex_id == i.vertex_id, self.vertices),
+                                  key=lambda j: self.get_travel_time(i, j)) for i in self.vertices]
         self._non_start_vertices = list(filter(lambda x: not x.is_start, self.vertices))
 
     @property
@@ -124,16 +137,20 @@ class Instance:
         else:
             return filter(lambda x: not x.is_start, self._adjacency[of.vertex_id])
 
+
 T = TypeVar('T', Type[Order], Type[Driver])
+
 
 def construct_typed(cls: T, **data):
     _fields = {x.name: x for x in fields(cls)}
     return cls(**{key: _fields[key].type(val) for key, val in data.items()})
 
+
 def parse(cls: T, file: Path):
     with file.open() as fh:
         reader: DictReader = DictReader(fh)
         return [construct_typed(cls, **x) for x in reader]
+
 
 def parse_orders(file: Path) -> list[Order]:
     return parse(Order, file)
@@ -142,16 +159,22 @@ def parse_orders(file: Path) -> list[Order]:
 def parse_drivers(file: Path) -> list[Driver]:
     return parse(Driver, file)
 
+
 def create_instance(order_file: Path, driver_file: Path) -> Instance:
     orders: list[Order] = parse_orders(order_file)
     drivers: list[Driver] = parse_drivers(driver_file)
 
     # Create vertices
     vertices = [
-        Vertex(vertex_id=v_id, vertex_type='driver', tw_start=driver.shift_start_sec, tw_end=driver.shift_end_sec, lat_long=(driver.start_location_lat, driver.start_location_long), items=0) for v_id, driver in enumerate(drivers)
+        Vertex(vertex_id=v_id, vertex_type='driver', tw_start=driver.shift_start_sec, tw_end=driver.shift_end_sec,
+               lat_long=(driver.start_location_lat, driver.start_location_long), items=0) for v_id, driver in
+        enumerate(drivers)
     ]
 
-    vehicles = [Vehicle(vehicle_id=i, start_time=driver_start.tw_start, end_time=driver_start.tw_end, start=driver_start, capacity=driver.capacity, driver=driver) for i, (driver, driver_start) in enumerate(zip(drivers, vertices))]
+    vehicles = [
+        Vehicle(vehicle_id=i, start_time=driver_start.tw_start, end_time=driver_start.tw_end, start=driver_start,
+                capacity=driver.capacity, driver=driver) for i, (driver, driver_start) in
+        enumerate(zip(drivers, vertices))]
 
     requests: list[Request] = []
 
@@ -171,6 +194,6 @@ def create_instance(order_file: Path, driver_file: Path) -> Instance:
 
     return Instance(vertices, travel_times, vehicles, requests)
 
-def requests_per_driver(instance: Instance) -> float:
-    return len(instance.requests)/len(instance.vehicles)
 
+def requests_per_driver(instance: Instance) -> float:
+    return len(instance.requests) / len(instance.vehicles)
