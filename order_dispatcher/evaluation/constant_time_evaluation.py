@@ -10,7 +10,11 @@ from order_dispatcher.models.solution import Cost, concatenate, Label
 
 
 class ConstantTimeEvaluation:
-
+    """
+    Implementation of constant time evaluation by using precomputed labels stored in the route. The evaluation works
+    by concatenating route segments.
+    See https://doi.org/10.1016/j.cor.2012.07.018 for details.
+    """
     def __init__(self, instance: Instance, penalty_factors: PenaltyFactors, target_fairness: float):
         self._instance = instance
         self._penalty_factors = copy(penalty_factors)

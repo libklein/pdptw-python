@@ -1,8 +1,6 @@
 The solver is implemented in Python version 3.10. I have chosen to not rely on external dependencies for this challenge. 
 I would use those in production code.
 
-# Aims and Scope
-
 # Approach
 
 Assumptions:
@@ -25,7 +23,11 @@ and assume that weights are picked by domain experts.
 ## Methodology
 
 We solve this problem using a LNS. 
-The implementation focuses on providing boilerplate code to easily implement a sophisticated LNS and hence 
+
+
+## Aims and Scope
+
+The implementation focuses on providing boilerplate code to easily implement a sophisticated LNS and hence
 comprises only a very limited number of operators.
 
 ### Destroy/Repair
@@ -38,7 +40,7 @@ This allows to travel through infeasible solution spaces. We adapt these penalti
 We note that allowing only feasible moves instead is straightforward in our implementation.
 We define neighborhood moves on the request level, that is, move pickup and delivery locations together, such that Pickup & Delivery vertices cannot be mismatched.
 
-We evaluate moves in constant time by tracking the state of partial routes.
+We evaluate moves in constant time by tracking the state of partial routes (See [Vidal 2013](https://doi.org/10.1016/j.cor.2012.07.018)).
 This is straightforward for the OtdViolation, the capacity violation, distance, and maximum shift duration. 
 Evaluating a move's impact on **courier fairness** is more challenging, as fairness is defined on the solution and not the route level. 
 We attempt to satisfy it on a route-level by computing the optimal (most fair) average utilization (orders per driver) and penalizing moves accordingly.
@@ -47,6 +49,7 @@ Finally, we always apply the first improving move found during the local search.
 we track the modification time of each route and the last time an operator evaluated moves for that route. This allows to, 
 skip evaluating moves where all involved routes have not changed since the last evaluation. 
 We shuffle the route evaluation order at the start of each local search to avoid an overly greedy local search.
+The local search procedure uses a single operator: relocate.
 
 ### Starting solution
 
@@ -61,10 +64,9 @@ This allows to store them directly in aggregates, avoiding lookups by id.
 
 In what follows, we briefly detail the fundamental classes of our local search procedure.
 
+### Running the code
 
-* Efficient concatenation of demand is not optimal because it takes the maximum into account
 
-* Guiding heuristic adapts penalty terms dynamically (Also cost terms?)
 
 # Further improvements
 
@@ -73,3 +75,4 @@ In what follows, we briefly detail the fundamental classes of our local search p
 * Logging
 * Tests
 * Assertions/Validation
+* Benchmark against exact solver to validate heuristic

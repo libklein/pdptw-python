@@ -10,7 +10,10 @@ from order_dispatcher.models.solution import Cost
 
 
 class ExactEvaluation:
-
+    """
+    Evaluates moves by copying the route, modifying the copy according to the requested move, and calculating
+    the resulting objective value.
+    """
     def __init__(self, instance: Instance, penalty_factors: PenaltyFactors, target_fairness: float):
         self._instance = instance
         self._penalty_factors = penalty_factors
