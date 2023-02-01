@@ -59,15 +59,23 @@ class Cost:
 
 @dataclass(slots=True, frozen=True)
 class Label:
+    # The minimum time passed up to this point assuming feasibility
     cum_time: Duration
+    # The cumulated travel time up to this point
     cum_travel_time: Duration
+    # The cumulated (i.e., current) load allocated by picked up/delivered items
     cum_load: Duration
 
+    # Actual starting time of the activity
     activity_start_time: Timestamp
+    # Earliest possible arrival time assuming feasibility
     earliest_arrival_time: Timestamp
+    # Latest possible arrival time assuming feasibility
     latest_arrival_time: Timestamp
 
+    # The total delay incurred so far
     cum_delay: Duration
+    # The maximum load allocated by picked up/delivered items
     max_load: int
 
     def get_cost(self, capacity: int, shift_duration: float, fairness_violation: float):
@@ -101,6 +109,12 @@ def concatenate(prefix: Label, postfix: Label, travel_time: float) -> Label:
 
 @dataclass(slots=True)
 class Node:
+    """
+    An aggregate of vertices and labels. Associates each vertex with labels capturing the state
+
+    Note: A more efficient and perhaps cleaner implementation could represent routes as a doubly-linked list of nodes. A
+    node then have set/get next/prev functions that allow to update the labels on update.
+    """
     vertex: Vertex
     forward_label: Label
     backward_label: Label
@@ -122,13 +136,24 @@ class Node:
 
 
 class Route:
+    """
+    An aggregate of `nodes` and `requests`. Represents the delivery route of a driver.
+
+    Invariants:
+    * Each request assigned to this route is represented by a node
+    * Node labels remain in a valid state
+
+    * Time stamp of last modification
+    """
     def __init__(self, instance: Instance, vehicle: Vehicle):
         self._instance = instance
         self._vehicle = vehicle
+        # A sequence of nodes, i.e., vertices with forward and backward labels,
         self._nodes: list[Node] = [Node.FromVertex(self._vehicle.start)]
+        # Requests served by this route
         self._requests: list[Request] = []
-        self._last_modified_timestamp = time.time()
-        # TODO Add route_id, adapt moves and solution accordingly
+        # Last modification time in seconds
+        self._last_modified_timestamp: Timestamp = time.time()
 
     @property
     def last_modification_time(self):
@@ -143,6 +168,9 @@ class Route:
         return route
 
     def _handle_change(self):
+        """
+        Updates the node labels to maintain the route invariant
+        """
         for prev_node, next_node in itertools.pairwise(self._nodes):
             next_node.forward_label = concatenate(prev_node.forward_label, Label.FromVertex(next_node.vertex),
                                                   self._instance.get_travel_time(prev_node.vertex, next_node.vertex))
@@ -160,6 +188,11 @@ class Route:
         self._last_modified_timestamp = time.time()
 
     def insert(self, request: Request, pickup_at: int, dropoff_at: int):
+        """
+        Inserts a request into the route. The index of the pickup location in the updated routes corresponds to pickup_at,
+        the index of the dropoff location to dropoff_at + 1.
+        """
+
         assert pickup_at <= dropoff_at
         assert pickup_at > 0
         self._nodes.insert(pickup_at, Node.FromVertex(request.pickup))
@@ -169,6 +202,9 @@ class Route:
 
 
     def remove(self, request: Request):
+        """
+        Removes a request from the route.
+        """
         pickup_pos, dropoff_pos = self.get_idx_of_request(request)
         del self._nodes[dropoff_pos]
         del self._nodes[pickup_pos]
@@ -177,18 +213,13 @@ class Route:
         self._handle_change()
 
     def append(self, request: Request):
+        """
+        Appends a request to the route, i.e., inserts pickup and dropoff at the end of the current route.
+        """
         self.insert(request, len(self._nodes), len(self._nodes))
 
     def __str__(self):
         return "-".join(map(str, self._nodes)) + " | " + str(self.cost)
-
-    @property
-    def travel_time(self) -> float:
-        return self.cost.travel_time
-
-    @property
-    def start(self) -> Vertex:
-        return self._vehicle.start
 
     @property
     def nodes(self):
@@ -209,9 +240,12 @@ class Route:
         raise ValueError
 
     def get_node_of(self, vertex: Vertex):
-        return next(x for x in self._nodes if x.vertex.vertex_id == vertex.vertex_id)
+        return self._nodes[self.get_idx_of_vertex(vertex)]
 
     def __len__(self):
+        """
+        The number of vertices visited by this route.
+        """
         return len(self._nodes)
 
     def __contains__(self, item: Vertex | Request):
@@ -229,12 +263,8 @@ class Route:
 
     @property
     def cost(self):
-        return self.label.get_cost(self._vehicle.capacity, self._vehicle.end_time,
+        return self._nodes[-1].forward_label.get_cost(self._vehicle.capacity, self._vehicle.end_time,
                                    abs(self._instance.avg_requests_per_driver - len(self.requests)))
-
-    @property
-    def label(self):
-        return self._nodes[-1].forward_label
 
     def get_objective(self, factors: PenaltyFactors):
         return self.cost * factors
@@ -388,7 +418,12 @@ class ExactEvaluation:
 
 
 class Solution:
+    """
+    A collection of routes. The class is, besides the routes, stateless and thus does not maintain a transactional border.
 
+    Note: I would have not chosen this design in production code, but would enforce that modifications to route objects happen through the solution, i.e.,
+    by providing only route ID's to any entities interacting with a solution.
+    """
     def __init__(self, instance: Instance):
         self._instance = instance
         self._routes: list[Route] = [
@@ -414,7 +449,7 @@ class Solution:
         return next(r for r in self.routes if of in r)
 
     def __str__(self):
-        return f'Solution with cost {self.cost} {self.feasible}:\n' + '\n\t'.join(map(str, self.routes))
+        return f'Solution with cost {self.cost} {self.feasible}:\n\t' + '\n\t'.join(map(str, self.routes))
 
     @property
     def cost(self) -> Cost:
@@ -433,11 +468,11 @@ class Solution:
         return itertools.chain(*(r.requests for r in self.routes))
 
     def remove_request(self, request: Request):
+        """
+        Removes a request from the solution.
+        """
         route = self.find_route(request)
         route.remove(request)
-
-    def insert_request(self, request: Request, route: Route, index_of_pickup: int, index_of_dropoff: int):
-        route.insert(request, index_of_pickup, index_of_dropoff)
 
     def get_objective(self, factors: PenaltyFactors) -> float:
         return sum(x.get_objective(factors) for x in self.routes)

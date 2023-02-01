@@ -19,7 +19,6 @@ class RandomDestroyOperator:
 
     def destroy(self, solution: Solution) -> set[Request]:
         num_requests = int(self._fraction_to_remove * solution.num_requests)
-        # TODO Change or document
         requests_to_remove = random.sample(list(solution.requests), k=num_requests)
         for next_request in requests_to_remove:
             solution.remove_request(next_request)
@@ -47,7 +46,6 @@ class BestInsertionOperator:
         return solution
 
 
-# Code is trivial right now. But an ALNS for instance
 class LargeNeighborhood:
     def __init__(self, ruin_operators: list[DestroyOperator], recreate_operators: list[RepairOperator],
                  ruin_operator_weights: Optional[list[float]] = None,

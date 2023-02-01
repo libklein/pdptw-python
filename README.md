@@ -49,34 +49,13 @@ We shuffle the route evaluation order at the start of each local search to avoid
 
 ## Implementation
 
+We only mention major assumptions here and refer to the documented source code for further details.
+
 We treat the fundamental models of the problem as value objects, i.e., ensure immutability. 
 This allows to store them directly in aggregates, avoiding lookups by id.
 
 In what follows, we briefly detail the fundamental classes of our local search procedure.
 
-`[Solution]`
-
-A collection of routes. The class is, besides the routes, stateless and thus does not maintain a transactional border. 
-I would have not chosen this design in production code, but would enforce that modifications to route objects happen through the solution, i.e.,
-by providing only route ID's to the .
-
-`[Route]`
-
-An aggregate of `nodes` and `requests`. Represents the delivery route of a driver.
-
-Invariant:
-* Each request assigned to this route
-* Node labels remain in a valid state (represent the )
-
-* A sequence of nodes, i.e., vertices with forward and backward labels, 
-* Time stamp of last modification
-
-`[Nodes]`
-
-An aggregate of vertices and labels. Associates each vertex with labels.
-
-* We do not allow solutions with missmatched Pickup & Delivery.
-* We allow infeasible solutions with respect to demand and shift length
 
 * Efficient concatenation of demand is not optimal because it takes the maximum into account
 

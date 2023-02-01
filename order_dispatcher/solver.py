@@ -2,19 +2,18 @@ import random
 import time
 from copy import copy, deepcopy
 
-from .models import Instance
-from .solution import Solution, Evaluation, PenaltyFactors
-from .subsolvers import LocalSearchSolver, LargeNeighborhood
-from .subsolvers.large_neighborhood.large_neighborhood import RandomDestroyOperator, BestInsertionOperator
-from .subsolvers.local_search.operators.relocate_operator import RelocateOperator
+from order_dispatcher.models import Instance, Duration
+from order_dispatcher.solution import Solution, Evaluation, PenaltyFactors
+from order_dispatcher.subsolvers import LocalSearchSolver, LargeNeighborhood
+from order_dispatcher.subsolvers.large_neighborhood.large_neighborhood import RandomDestroyOperator, BestInsertionOperator
+from order_dispatcher.subsolvers.local_search.operators.relocate_operator import RelocateOperator
 
 
 class Solver:
-    def __init__(self, instance: Instance, objective_function_factors: PenaltyFactors):
+    def __init__(self, instance: Instance, objective_function_factors: PenaltyFactors, time_limit_sec: Duration):
         self._instance = instance
-        # TODO Termination criterion
-        # TODO Come up with fairness factor
         self._obj_factor = objective_function_factors
+        self._time_limit = time_limit_sec
         self._penalty = PenaltyFactors(delay_factor=self._obj_factor.delay_factor, overtime_factor=10000.,
                                        overload_factor=10000., fairness_factor=self._obj_factor.fairness_factor)
 
@@ -31,23 +30,24 @@ class Solver:
         self._best_feasible_solution = None
 
     def _construct_initial_solution(self) -> Solution:
+        """
+        Constructs a solution by inserting requests at the best possible location into an initially empty solution in random order.
+        """
+        best_insertion_operator = BestInsertionOperator(self._evaluation)
         sol = Solution(self._instance)
 
         request_set = copy(self._instance._requests)
+        # Randomize the order in which requests are considered for insertion.
         random.shuffle(request_set)
 
+        # Insert requests one at a time.
         for next_request in request_set:
-            moves = (move
-                     for route in sol.routes
-                     for at in range(1, len(route) + 1)
-                     for move in self._evaluation.calculate_insertion(of=next_request, into_route=route, at=at))
-            best_move = min(moves, key=lambda x: x.delta_cost)
-            best_move.apply(sol)
+            best_insertion_operator.repair(sol, missing_requests={next_request})
 
         return sol
 
     def _should_terminate(self):
-        return (time.time() - self._solver_start_time) >= 60
+        return (time.time() - self._solver_start_time) >= self._time_limit
 
     def _generate_solutions(self):
         i = 0
