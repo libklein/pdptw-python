@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import itertools
+import random
 import time
 from copy import copy, deepcopy
 from dataclasses import dataclass
 from typing import Iterable
 
-from order_dispatcher.models import Instance, Vertex, Request, Vehicle
+from order_dispatcher.models import Instance, Vertex, Request, Vehicle, Duration, Timestamp
 
 
 # It could make more sense to have a parent class, "objective weights" that this class extends with factors for overtime and overload.
@@ -20,9 +21,9 @@ class PenaltyFactors:
 
 @dataclass(slots=True, frozen=True)
 class Cost:
-    travel_time: float
-    delay: float
-    overtime: float
+    travel_time: Duration
+    delay: Duration
+    overtime: Duration
     overload: int
     fairness_violation: float
 
@@ -58,15 +59,15 @@ class Cost:
 
 @dataclass(slots=True, frozen=True)
 class Label:
-    cum_time: float
-    cum_travel_time: float
-    cum_load: int
+    cum_time: Duration
+    cum_travel_time: Duration
+    cum_load: Duration
 
-    activity_start_time: float
-    earliest_arrival_time: float
-    latest_arrival_time: float
+    activity_start_time: Timestamp
+    earliest_arrival_time: Timestamp
+    latest_arrival_time: Timestamp
 
-    cum_delay: float
+    cum_delay: Duration
     max_load: int
 
     def get_cost(self, capacity: int, shift_duration: float, fairness_violation: float):
@@ -390,7 +391,7 @@ class Solution:
 
     def __init__(self, instance: Instance):
         self._instance = instance
-        self.routes: list[Route] = [
+        self._routes: list[Route] = [
             Route(self._instance, vehicle) for vehicle in self._instance.vehicles
         ]
 
@@ -399,8 +400,15 @@ class Solution:
         if memodict is None:
             memodict = {}
         sol = copy(self)
-        sol.routes = deepcopy(self.routes, memodict)
+        sol._routes = deepcopy(self._routes, memodict)
         return sol
+
+    @property
+    def routes(self) -> list[Route]:
+        return self._routes
+
+    def shuffle_route_order(self):
+        random.shuffle(self._routes)
 
     def find_route(self, of: Vertex | Request) -> Route:
         return next(r for r in self.routes if of in r)

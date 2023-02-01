@@ -147,6 +147,14 @@ class Instance:
         return self._vehicles
 
     @property
+    def vertices(self) -> list[Vertex]:
+        pass
+
+    @property
+    def requests(self) -> list[Request]:
+        return self._requests
+
+    @property
     def avg_requests_per_driver(self):
         return len(self._requests) / len(self._vehicles)
 

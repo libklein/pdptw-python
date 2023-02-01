@@ -1,3 +1,4 @@
+import math
 import time
 from pathlib import Path
 import random
@@ -68,12 +69,10 @@ def solve(driver_file: Path, order_file: Path, time_limit_sec: float, delay_fact
         return route._vehicle.driver, pickup_node.forward_label.activity_start_time, dropoff_node.forward_label.activity_start_time
 
     # Export the solution
-    """
     for request in inst.requests:
         driver, pickup_time_sec, dropoff_time_sec = find_request_data(best_sol, request)
         # Since time windows are integer, ceil is always feasible for dropoff, floor for pickup
         print(request.order.order_id, driver.driver_id, math.floor(pickup_time_sec), math.ceil(dropoff_time_sec))
-    """
 
     # Note, i use the global random here. I'd inject instances of Random() in production code
 

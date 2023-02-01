@@ -55,6 +55,7 @@ class LocalSearchSolver:
 
     def optimize(self, solution: Solution):
         self._reset_cache()
+        solution.shuffle_route_order()
         while True:
             if (move := self._find_first_improvement(solution)) is None:
                 return

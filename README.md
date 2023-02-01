@@ -22,7 +22,12 @@ and assume that weights are picked by domain experts.
 ## Methodology
 
 We solve this problem using a LNS. 
-The implementation comprises only a very limited number of operators, but provides easy-to-use interfaces to implement additional operators.
+The implementation focuses on providing boilerplate code to easily implement a sophisticated LNS and hence 
+comprises only a very limited number of operators.
+
+### Destroy/Repair
+
+### Local Search
 
 We allow solutions infeasible with respect to driver shift duration and freight capacity during the search procedure, penalized according to a generalized cost function:
 $$ c(S) = distance_cost + \alpha * OtDViolation + \beta * \sum_{c \in R} |c.numRequests - avgNumRequests| + \gamma * \text{max capacity violation} + \mu * \text{overtime}$$
@@ -37,20 +42,23 @@ We attempt to satisfy it on a route-level by computing the optimal average utili
 We chose to not normalize the deviation from the optimal average utilization as this skews the objective, i.e., the number of orders assigned determines fairness, not the average time spent en-route.
 Finally, we always apply the first improving move found during the local search. This allows a efficient caching mechanism: 
 we track the modification time of each route and the last time an operator evaluated moves for that route. This allows to, 
-skip evaluating moves where all involved routes have not changed since the last evaluation.
+skip evaluating moves where all involved routes have not changed since the last evaluation. 
+We shuffle the route evaluation order at the start of each local search to avoid an overly greedy local search.
 
-
+### Starting solution
 
 ## Implementation
+
+We treat the fundamental models of the problem as value objects, i.e., ensure immutability. 
+This allows to store them directly in aggregates, avoiding lookups by id.
 
 In what follows, we briefly detail the fundamental classes of our local search procedure.
 
 `[Solution]`
 
-An aggregate of routes, one for each driver.
-
-Invariant:
-* Always one route for each driver
+A collection of routes. The class is, besides the routes, stateless and thus does not maintain a transactional border. 
+I would have not chosen this design in production code, but would enforce that modifications to route objects happen through the solution, i.e.,
+by providing only route ID's to the .
 
 `[Route]`
 
