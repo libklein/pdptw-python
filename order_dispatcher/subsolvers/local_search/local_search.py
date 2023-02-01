@@ -23,9 +23,6 @@ class Move(Protocol):
     def apply(self, solution: Solution):
         ...
 
-    def update(self):
-        ...
-
 
 class Operator(Protocol):
     def generate_moves(self, solution: Solution) -> Iterable[Move]:
@@ -66,7 +63,6 @@ class LocalSearchSolver:
             expected_cost = prev_cost + move.delta_cost
             # print("Applying move", move.delta_cost, "to solution with cost", prev_cost)
             move.apply(solution)
-            move.update()
             yield
             # print(f"New cost: {solution.get_objective(self._penalty)}, prev cost: {prev_cost}, expected: {expected_cost}, delta: {abs(prev_cost - expected_cost)}")
             assert abs(expected_cost - solution.get_objective(self._penalty)) <= 0.01

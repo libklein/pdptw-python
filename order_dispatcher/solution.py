@@ -140,7 +140,7 @@ class Route:
         self._requests = copy(self._requests)
         return route
 
-    def update(self):
+    def _handle_change(self):
         for prev_node, next_node in itertools.pairwise(self._nodes):
             next_node.forward_label = concatenate(prev_node.forward_label, Label.FromVertex(next_node.vertex),
                                                   self._instance.get_travel_time(prev_node.vertex, next_node.vertex))
@@ -155,14 +155,16 @@ class Route:
             prev_node.backward_label = concatenate(Label.FromVertex(prev_node.vertex), next_node.backward_label,
                                                    self._instance.get_travel_time(prev_node.vertex, next_node.vertex))
 
+        self._last_modified_timestamp = time.time()
+
     def insert(self, request: Request, pickup_at: int, dropoff_at: int):
         assert pickup_at <= dropoff_at
         assert pickup_at > 0
         self._nodes.insert(pickup_at, Node.FromVertex(request.pickup))
         self._nodes.insert(dropoff_at + 1, Node.FromVertex(request.dropoff))
         self._requests.append(request)
+        self._handle_change()
 
-        self._last_modified_timestamp = time.time()
 
     def remove(self, request: Request):
         pickup_pos, dropoff_pos = self.get_idx_of_request(request)
@@ -170,7 +172,7 @@ class Route:
         del self._nodes[pickup_pos]
         self._requests.remove(request)
 
-        self._last_modified_timestamp = time.time()
+        self._handle_change()
 
     def append(self, request: Request):
         self.insert(request, len(self._nodes), len(self._nodes))
@@ -255,9 +257,6 @@ class InsertionMove:
         assert any(id(x) == id(self.route) for x in solution.routes)
         self.route.insert(self.request, self.pickup_insertion_point, self.dropoff_insertion_point)
 
-    def update(self):
-        self.route.update()
-
 
 @dataclass(slots=True, frozen=True)
 class RemovalMove:
@@ -272,9 +271,6 @@ class RemovalMove:
     def apply(self, solution: Solution):
         assert any(id(x) == id(self.route) for x in solution.routes)
         self.route.remove(self.request)
-
-    def update(self):
-        self.route.update()
 
 
 class Evaluation:
@@ -366,7 +362,6 @@ class ExactEvaluation:
 
         tmp_route = deepcopy(from_route)
         tmp_route.remove(of)
-        tmp_route.update()
 
         return RemovalMove(
             delta_cost=self.compute_cost(tmp_route.cost) - prev_cost,
@@ -381,7 +376,6 @@ class ExactEvaluation:
         for succ_idx in range(at, len(into_route) + 1):
             tmp_route = deepcopy(into_route)
             tmp_route.insert(of, at, succ_idx)
-            tmp_route.update()
 
             yield InsertionMove(delta_cost=self.compute_cost(tmp_route.cost) - prev_cost,
                                 feasible=tmp_route.feasible,
@@ -429,13 +423,12 @@ class Solution:
     def requests(self):
         return itertools.chain(*(r.requests for r in self.routes))
 
-    def update(self):
-        for r in self.routes:
-            r.update()
-
     def remove_request(self, request: Request):
         route = self.find_route(request)
         route.remove(request)
+
+    def insert_request(self, request: Request, route: Route, index_of_pickup: int, index_of_dropoff: int):
+        route.insert(request, index_of_pickup, index_of_dropoff)
 
     def get_objective(self, factors: PenaltyFactors) -> float:
         return sum(x.get_objective(factors) for x in self.routes)

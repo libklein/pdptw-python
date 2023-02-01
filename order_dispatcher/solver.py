@@ -42,7 +42,6 @@ class Solver:
                      for move in self._evaluation.calculate_insertion(next_request, route, at))
             best_move = min(moves, key=lambda x: x.delta_cost)
             best_move.apply(sol)
-            best_move.update()
 
         return sol
 

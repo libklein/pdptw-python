@@ -23,7 +23,6 @@ class RandomDestroyOperator:
         requests_to_remove = random.sample(list(solution.requests), k=num_requests)
         for next_request in requests_to_remove:
             solution.remove_request(next_request)
-        solution.update()
         return set(requests_to_remove)
 
 
@@ -44,7 +43,6 @@ class BestInsertionOperator:
                      for move in self._evaluation.calculate_insertion(next_request, route, at))
             best_move = min(moves, key=lambda x: x.delta_cost)
             best_move.apply(solution)
-            best_move.update()
 
         return solution
 
