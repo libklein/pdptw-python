@@ -1,3 +1,9 @@
+# Requirements
+
+Python 3.10
+
+# Aims and Scope
+
 # Assumptions
 
 * Haversine radius 6364.757km (computed from avg lat and avg long (height above sea level), https://rechneronline.de/earth-radius/)
