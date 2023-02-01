@@ -1,16 +1,13 @@
-# Requirements
-
-Python 3.10
+The solver is implemented in Python version 3.10. I have chosen to not rely on external dependencies for this challenge. 
+I would use those in production code.
 
 # Aims and Scope
 
-# Assumptions
+# Approach
 
-* Haversine radius 6364.757km (computed from avg lat and avg long (height above sea level), https://rechneronline.de/earth-radius/)
+Assumptions:
 * Restaurants prepare order in parallel. (In alignment with Pol).
 * Fairness relates to the number of orders assigned to each courier, not the courier's travel time.
-
-# Approach
 
 ## Model
 
@@ -53,6 +50,8 @@ We shuffle the route evaluation order at the start of each local search to avoid
 
 ### Starting solution
 
+We generate a starting solution by inserting requests into an initially empty solution in random order.
+
 ## Implementation
 
 We only mention major assumptions here and refer to the documented source code for further details.
@@ -67,7 +66,7 @@ In what follows, we briefly detail the fundamental classes of our local search p
 
 * Guiding heuristic adapts penalty terms dynamically (Also cost terms?)
 
-## Further Work
+# Further improvements
 
 * Improve performance. Right now labels are copied.
 * More operators.
