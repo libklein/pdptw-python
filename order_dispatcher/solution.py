@@ -9,6 +9,7 @@ from typing import Iterable
 from order_dispatcher.models import Instance, Vertex, Request, Vehicle
 
 
+# It could make more sense to have a parent class, "objective weights" that this class extends with factors for overtime and overload.
 @dataclass(slots=True)
 class PenaltyFactors:
     delay_factor: float
