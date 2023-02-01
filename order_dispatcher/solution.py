@@ -153,7 +153,7 @@ class Route:
         # prev_node is before next_node viewed from the first node, i.e., in regular and not reversed order:
         # [first_node, ..., prev_node, next_node, ..., last_node]
         for next_node, prev_node in itertools.pairwise(reversed(self._nodes)):
-            # We use the "forward" (prev, next) travel time here. This avoids issues with asymmetric distance matrices. (real world routing)
+            # We use the "forward" (prev, next) travel time here. This avoids issues with asymmetric function matrices. (real world routing)
             prev_node.backward_label = concatenate(Label.FromVertex(prev_node.vertex), next_node.backward_label,
                                                    self._instance.get_travel_time(prev_node.vertex, next_node.vertex))
 

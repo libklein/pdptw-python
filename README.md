@@ -81,3 +81,11 @@ An aggregate of vertices and labels. Associates each vertex with labels.
 * Efficient concatenation of demand is not optimal because it takes the maximum into account
 
 * Guiding heuristic adapts penalty terms dynamically (Also cost terms?)
+
+## Further Work
+
+* Improve performance. Right now labels are copied.
+* More operators.
+* Logging
+* Tests
+* Assertions/Validation
