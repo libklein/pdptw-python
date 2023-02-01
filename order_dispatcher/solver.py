@@ -5,7 +5,8 @@ from copy import copy, deepcopy
 from order_dispatcher.models import Instance, Duration
 from order_dispatcher.solution import Solution, Evaluation, PenaltyFactors
 from order_dispatcher.subsolvers import LocalSearchSolver, LargeNeighborhood
-from order_dispatcher.subsolvers.large_neighborhood.large_neighborhood import RandomDestroyOperator, BestInsertionOperator
+from order_dispatcher.operators.best_insertion_operator import BestInsertionOperator
+from order_dispatcher.operators.random_destroy_operator import RandomDestroyOperator
 from order_dispatcher.subsolvers.local_search.operators.relocate_operator import RelocateOperator
 
 
@@ -22,14 +23,16 @@ class Solver:
         self._penalty = PenaltyFactors(delay_factor=self._obj_factor.delay_factor, overtime_factor=10000.,
                                        overload_factor=10000., fairness_factor=self._obj_factor.fairness_factor)
 
-        self._evaluation = Evaluation(self._instance, self._penalty, self._instance.avg_requests_per_driver)
+        self._evaluation = Evaluation(self._instance, penalty_factors=self._penalty,
+                                      target_fairness=self._instance.avg_requests_per_driver)
 
         self._local_search_solver = LocalSearchSolver(self._instance, self._penalty,
                                                       [RelocateOperator(self._evaluation)])
         self._large_neighborhood = LargeNeighborhood(
-            ruin_operators=[RandomDestroyOperator(self._instance, fraction_to_remove=0.2)],
+            ruin_operators=[RandomDestroyOperator(fraction_to_remove=0.2)],
             recreate_operators=[
-                BestInsertionOperator(Evaluation(self._instance, self._obj_factor, self._instance.avg_requests_per_driver))])
+                BestInsertionOperator(Evaluation(self._instance, penalty_factors=self._obj_factor,
+                                                 target_fairness=self._instance.avg_requests_per_driver))])
 
         self._best_solution = None
         self._best_feasible_solution = None
@@ -47,7 +50,7 @@ class Solver:
 
         # Insert requests one at a time.
         for next_request in request_set:
-            best_insertion_operator.repair(sol, missing_requests={next_request})
+            best_insertion_operator.insert(sol, request=next_request)
 
         return sol
 

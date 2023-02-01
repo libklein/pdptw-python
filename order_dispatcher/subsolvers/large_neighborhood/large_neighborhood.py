@@ -3,8 +3,8 @@ import random
 from copy import copy, deepcopy
 from typing import Protocol, Optional, Iterator
 
-from order_dispatcher.models import Instance, Request
-from order_dispatcher.solution import Solution, Evaluation
+from order_dispatcher.models import Request
+from order_dispatcher.solution import Solution
 
 
 class DestroyOperator(Protocol):
@@ -12,38 +12,9 @@ class DestroyOperator(Protocol):
         ...
 
 
-class RandomDestroyOperator:
-    def __init__(self, instance: Instance, fraction_to_remove: float):
-        self._instance = instance
-        self._fraction_to_remove = fraction_to_remove
-
-    def destroy(self, solution: Solution) -> set[Request]:
-        num_requests = int(self._fraction_to_remove * solution.num_requests)
-        requests_to_remove = random.sample(list(solution.requests), k=num_requests)
-        for next_request in requests_to_remove:
-            solution.remove_request(next_request)
-        return set(requests_to_remove)
-
-
 class RepairOperator(Protocol):
     def repair(self, solution: Solution, missing_requests: set[Request]):
         ...
-
-
-class BestInsertionOperator:
-    def __init__(self, evaluation: Evaluation):
-        self._evaluation = evaluation
-
-    def repair(self, solution: Solution, missing_requests: set[Request]):
-        for next_request in missing_requests:
-            moves = (move
-                     for route in solution.routes
-                     for at in range(1, len(route) + 1)
-                     for move in self._evaluation.calculate_insertion(next_request, route, at))
-            best_move = min(moves, key=lambda x: x.delta_cost)
-            best_move.apply(solution)
-
-        return solution
 
 
 class LargeNeighborhood:
