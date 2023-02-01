@@ -30,8 +30,8 @@ class Solver:
         self._local_search_solver = LocalSearchSolver(self._instance, self._penalty,
                                                       [RelocateOperator(self._evaluation)])
         self._large_neighborhood = LargeNeighborhood(
-            ruin_operators=[RandomDestroyOperator(fraction_to_remove=0.2)],
-            recreate_operators=[
+            destroy_operators=[RandomDestroyOperator(fraction_to_remove=0.2)],
+            repair_operators=[
                 BestInsertionOperator(ConstantTimeEvaluation(self._instance, penalty_factors=self._obj_factor,
                                                              target_fairness=self._instance.avg_requests_per_driver))])
 

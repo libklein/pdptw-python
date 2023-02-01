@@ -8,6 +8,9 @@ from order_dispatcher.evaluation import Evaluation, RemovalMove, InsertionMove
 
 @dataclass
 class RelocateMove:
+    """
+    Move encoding a move in the relocate neighborhood. Comprises an insertion and a removal move.
+    """
     removal_move: RemovalMove
     insertion_move: InsertionMove
 
@@ -23,12 +26,15 @@ class RelocateMove:
     def worthwhile(self) -> bool:
         return self.delta_cost < 0
 
-    def apply(self, solution: Solution):
-        self.removal_move.apply(solution)
-        self.insertion_move.apply(solution)
+    def apply(self):
+        self.removal_move.apply()
+        self.insertion_move.apply()
 
 
 class RelocateOperator:
+    """
+    Relocate operator. Defines the relocate neighborhood. Considers only inter-route relocates.
+    """
     def __init__(self, evaluation: Evaluation):
         self._evaluation = evaluation
         self.reset_cache()

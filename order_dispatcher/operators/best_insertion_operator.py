@@ -18,6 +18,6 @@ class BestInsertionOperator:
                      for at in range(1, len(route) + 1)
                      for move in self._evaluation.calculate_insertion(next_request, route, at))
             best_move = min(moves, key=lambda x: x.delta_cost)
-            best_move.apply(solution)
+            best_move.apply()
 
         return solution

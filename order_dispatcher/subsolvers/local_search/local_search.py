@@ -3,29 +3,23 @@ import itertools
 from copy import copy
 from typing import Protocol, Iterable, Optional
 
+from order_dispatcher.evaluation import Move
 from order_dispatcher.models import Instance
 from order_dispatcher.models.solution import PenaltyFactors, Solution
 
 
-class Move(Protocol):
-    @property
-    def delta_cost(self) -> float:
-        ...
-
-    @property
-    def feasible(self):
-        ...
-
-    @property
-    def worthwhile(self) -> bool:
-        ...
-
-    def apply(self, solution: Solution):
-        ...
-
-
 class Operator(Protocol):
+    """
+    A local search operator
+    """
     def generate_moves(self, solution: Solution) -> Iterable[Move]:
+        """
+
+        :param solution:
+        :type solution:
+        :return:
+        :rtype:
+        """
         ...
 
     def reset_cache(self):
@@ -63,7 +57,7 @@ class LocalSearchSolver:
             prev_cost = solution.get_objective(self._penalty)
             expected_cost = prev_cost + move.delta_cost
             # print("Applying move", move.delta_cost, "to solution with cost", prev_cost)
-            move.apply(solution)
+            move.apply()
             yield
             # print(f"New cost: {solution.get_objective(self._penalty)}, prev cost: {prev_cost}, expected: {expected_cost}, delta: {abs(prev_cost - expected_cost)}")
             assert abs(expected_cost - solution.get_objective(self._penalty)) <= 0.01

@@ -4,7 +4,7 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Iterable
 
-from order_dispatcher.evaluation.evaluation import RemovalMove, InsertionMove
+from .move import InsertionMove, RemovalMove
 from order_dispatcher.models import Instance, PenaltyFactors, Request, Route
 from order_dispatcher.models.solution import Cost
 
