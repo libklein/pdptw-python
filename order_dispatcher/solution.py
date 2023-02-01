@@ -4,10 +4,9 @@ import itertools
 import time
 from copy import copy, deepcopy
 from dataclasses import dataclass
-from itertools import pairwise
 from typing import Iterable
 
-from models import Instance, Vertex, Request, Vehicle, requests_per_driver
+from order_dispatcher.models import Instance, Vertex, Request, Vehicle
 
 
 @dataclass(slots=True)
@@ -227,7 +226,7 @@ class Route:
     @property
     def cost(self):
         return self.label.get_cost(self._vehicle.capacity, self._vehicle.end_time,
-                                   abs(requests_per_driver(self._instance) - len(self.requests)))
+                                   abs(self._instance.avg_requests_per_driver - len(self.requests)))
 
     @property
     def label(self):
@@ -284,7 +283,6 @@ class Evaluation:
         self._instance = instance
         self._penalty_factors = copy(penalty_factors)
         self._target_fairness = target_fairness
-        assert all(x.capacity == y.capacity for x, y in pairwise(self._instance.vehicles))
 
     def compute_cost(self, cost: Cost) -> float:
         return cost * self._penalty_factors
@@ -359,7 +357,6 @@ class ExactEvaluation:
         self._instance = instance
         self._penalty_factors = penalty_factors
         self._target_fairness = target_fairness
-        assert all(x.capacity == y.capacity for x, y in pairwise(self._instance.vehicles))
 
     def compute_cost(self, cost: Cost) -> float:
         return cost * self._penalty_factors

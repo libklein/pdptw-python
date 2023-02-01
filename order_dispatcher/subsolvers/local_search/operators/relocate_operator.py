@@ -2,7 +2,7 @@
 import time
 from dataclasses import dataclass
 
-from solution import RemovalMove, InsertionMove, Evaluation, Solution, Route
+from order_dispatcher.solution import RemovalMove, InsertionMove, Evaluation, Solution, Route
 
 
 @dataclass

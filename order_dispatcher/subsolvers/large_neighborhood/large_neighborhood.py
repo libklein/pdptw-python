@@ -3,8 +3,8 @@ import random
 from copy import copy, deepcopy
 from typing import Protocol, Optional, Iterator
 
-from models import Instance, Request
-from solution import Solution, Evaluation
+from order_dispatcher.models import Instance, Request
+from order_dispatcher.solution import Solution, Evaluation
 
 
 class DestroyOperator(Protocol):
@@ -18,7 +18,6 @@ class RandomDestroyOperator:
         self._fraction_to_remove = fraction_to_remove
 
     def destroy(self, solution: Solution) -> set[Request]:
-        assert solution.num_requests == len(self._instance.requests)
         num_requests = int(self._fraction_to_remove * solution.num_requests)
         # TODO Change or document
         requests_to_remove = random.sample(list(solution.requests), k=num_requests)

@@ -1,4 +1,6 @@
-- Slots
 - TODOs in Code
-- DDD for Driver etc.
-	- Interface: Location
+- Penalty adaption
+- Objective function via CLI
+- Modify routes only through solution, reference as route_id outside
+- Introduce semantic type aliases
+- DDD Approach for data outside the solver

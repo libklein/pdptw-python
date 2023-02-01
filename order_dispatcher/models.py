@@ -115,28 +115,20 @@ class Request:
 class Instance:
     def __init__(self, vertices: list[Vertex], travel_times: list[list[float]], vehicles: list[Vehicle],
                  requests: list[Request]):
-        self.vertices = vertices
-        self.travel_times = travel_times
-        self.vehicles = vehicles
-        self.requests = requests
-
-        self._adjacency = [sorted(filter(lambda x: x.vertex_id == i.vertex_id, self.vertices),
-                                  key=lambda j: self.get_travel_time(i, j)) for i in self.vertices]
-        self._non_start_vertices = list(filter(lambda x: not x.is_start, self.vertices))
-
-    @property
-    def non_start_vertices(self) -> list[Vertex]:
-        return self._non_start_vertices
+        self._vertices = vertices
+        self._travel_times = travel_times
+        self._vehicles = vehicles
+        self._requests = requests
 
     def get_travel_time(self, i: Vertex, j: Vertex) -> float:
-        return self.travel_times[i.vertex_id][j.vertex_id]
+        return self._travel_times[i.vertex_id][j.vertex_id]
 
-    def get_adjacent_vertices(self, of: Vertex, include_start=False):
-        if include_start:
-            return self._adjacency[of.vertex_id]
-        else:
-            return filter(lambda x: not x.is_start, self._adjacency[of.vertex_id])
-
+    @property
+    def vehicles(self):
+        return self._vehicles
+    @property
+    def avg_requests_per_driver(self):
+        return len(self._requests) / len(self._vehicles)
 
 T = TypeVar('T', Type[Order], Type[Driver])
 
@@ -193,7 +185,3 @@ def create_instance(order_file: Path, driver_file: Path) -> Instance:
     travel_times = compute_distance_matrix(partial(compute_travel_time, speed_kmh=15), [x.lat_long for x in vertices])
 
     return Instance(vertices, travel_times, vehicles, requests)
-
-
-def requests_per_driver(instance: Instance) -> float:
-    return len(instance.requests) / len(instance.vehicles)

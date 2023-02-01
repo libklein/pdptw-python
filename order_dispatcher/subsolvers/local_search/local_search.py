@@ -3,8 +3,8 @@ import itertools
 from copy import copy
 from typing import Protocol, Iterable, Optional
 
-from models import Instance
-from solution import PenaltyFactors, Solution
+from order_dispatcher.models import Instance
+from order_dispatcher.solution import PenaltyFactors, Solution
 
 
 class Move(Protocol):
@@ -42,6 +42,7 @@ class LocalSearchSolver:
         self._operators = operators
 
     def _generate_moves(self, solution: Solution) -> Iterable[Move]:
+        # You can switch to feasible moves only by filtering the move stream
         return itertools.chain(*(op.generate_moves(solution) for op in self._operators))
 
     def _reset_cache(self):
