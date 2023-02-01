@@ -1,5 +1,5 @@
 import time
-from copy import copy
+from copy import copy, deepcopy
 from typing import Protocol
 
 from models import Instance
@@ -26,6 +26,9 @@ class Solver:
         self._large_neighborhood = LargeNeighborhood(ruin_operators=[RandomDestroyOperator(self._instance, fraction_to_remove=0.2)],
                                                      recreate_operators=[BestInsertionOperator(Evaluation(self._instance, self._obj_factor, self._avg_requests_per_driver))])
 
+        self._best_solution = None
+        self._best_feasible_solution = None
+
     def _construct_initial_solution(self) -> Solution:
         sol = Solution(self._instance)
 
@@ -47,23 +50,29 @@ class Solver:
     def _should_terminate(self):
         return (time.time() - self._solver_start_time) >= 60
 
-    def solve(self):
-        best_solution = self._construct_initial_solution()
-        yield best_solution
-        best_feasible_solution = best_solution if best_solution.feasible else None
-        # TODO Termination criterion
-        # Use wall clock time
-        self._solver_start_time = time.time()
-        # TODO this does not actually terminate in 60 secs
+    def _generate_solutions(self):
         while True:
             # Generate new solution
-            next_candidate_solution = next(self._large_neighborhood.explore_neighborhood_of(best_solution))
+            next_candidate_solution = next(self._large_neighborhood.explore_neighborhood_of(self._best_solution))
             # Improve with local search
             for _ in self._local_search_solver.optimize(next_candidate_solution):
-                self._
-                if (best_obj := best_solution.get_objective(self._obj_factor)) > (cand_obj := next_candidate_solution.get_objective(self._obj_factor)):
-                    print(f'Improved solution from {best_obj=} to {cand_obj=}.')
-                    best_solution = next_candidate_solution
-                    yield best_solution
-                if self._should_terminate():
-                    return
+                yield next_candidate_solution
+
+    def solve(self):
+        self._solver_start_time = time.time()
+        self._best_solution = self._construct_initial_solution()
+        self._best_feasible_solution = self._best_solution if self._best_solution.feasible else None
+        # Use wall clock time
+        for candidate_solution in self._generate_solutions():
+            candidate_objective = candidate_solution.get_objective(self._obj_factor)
+            if (best_obj := self._best_solution.get_objective(self._obj_factor)) > candidate_objective:
+                print(f'Improved solution from {best_obj=} to {candidate_objective=}.')
+                self._best_solution = deepcopy(candidate_solution)
+                yield self._best_solution
+            if candidate_solution.feasible and (self._best_feasible_solution is None or self._best_feasible_solution.get_objective(self._obj_factor) > candidate_objective):
+                self._best_feasible_solution = deepcopy(candidate_solution)
+                yield self._best_feasible_solution
+                print(f'Found improving feasible solution: {self._best_feasible_solution.get_objective(self._obj_factor)}')
+
+            if self._should_terminate():
+                return

@@ -117,6 +117,7 @@ class Route:
         self._nodes: list[Node] = [Node.FromVertex(self._vehicle.start)]
         self._requests: list[Request] = []
         self._last_modified_timestamp = time.time()
+        # TODO Add route_id, adapt moves and solution accordingly
 
     @property
     def last_modification_time(self):

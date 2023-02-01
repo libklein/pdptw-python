@@ -18,7 +18,7 @@ order_file = Path(argv[2])
 inst = create_instance(order_file, driver_file)
 
 solver = Solver(inst)
-*_, best_sol = solver.solve()
+*_, best_sol = filter(lambda sol: sol.feasible, solver.solve())
 
 print(best_sol)
 
