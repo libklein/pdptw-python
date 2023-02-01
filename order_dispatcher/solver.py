@@ -11,6 +11,11 @@ from order_dispatcher.subsolvers.local_search.operators.relocate_operator import
 
 class Solver:
     def __init__(self, instance: Instance, objective_function_factors: PenaltyFactors, time_limit_sec: Duration):
+        """
+        :param instance: The instance to solve.
+        :param objective_function_factors: The factors of the objective function
+        :param time_limit_sec: The time limit (wall clock time) in seconds
+        """
         self._instance = instance
         self._obj_factor = objective_function_factors
         self._time_limit = time_limit_sec
@@ -50,17 +55,22 @@ class Solver:
         return (time.time() - self._solver_start_time) >= self._time_limit
 
     def _generate_solutions(self):
-        i = 0
+        """
+        Generates solutions using LNS. Yields each explored solution.
+        """
         while True:
-            print(f"Iteration {i}")
-            i += 1
             # Generate new solution
             next_candidate_solution = next(self._large_neighborhood.explore_neighborhood_of(self._best_solution))
+            # Returns a copy as we will modify next_canidate_solution further
+            yield deepcopy(next_candidate_solution)
             # Improve with local search
             for _ in self._local_search_solver.optimize(next_candidate_solution):
-                yield next_candidate_solution
+                yield deepcopy(next_candidate_solution)
 
     def solve(self):
+        """
+        Solves the instance, reporting each improving solution. Terminates when exceeding the time limit.
+        """
         self._solver_start_time = time.time()
         self._best_solution = self._construct_initial_solution()
         self._best_feasible_solution = self._best_solution if self._best_solution.feasible else None
@@ -68,12 +78,12 @@ class Solver:
         for candidate_solution in self._generate_solutions():
             candidate_objective = candidate_solution.get_objective(self._obj_factor)
             if self._best_solution.get_objective(self._obj_factor) > candidate_objective:
-                self._best_solution = deepcopy(candidate_solution)
+                self._best_solution = candidate_solution
                 yield self._best_solution
             if candidate_solution.feasible and (
                     self._best_feasible_solution is None or self._best_feasible_solution.get_objective(
                     self._obj_factor) > candidate_objective):
-                self._best_feasible_solution = deepcopy(candidate_solution)
+                self._best_feasible_solution = candidate_solution
                 yield self._best_feasible_solution
 
             if self._should_terminate():

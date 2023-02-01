@@ -15,7 +15,7 @@ def cli():
     parser.add_argument('driver_file', help='Path to the file containing driver data in csv format.')
     parser.add_argument('order_file', help='Path to the file containing order data in csv format.')
     parser.add_argument('--seed', action='store', dest='seed', default=None, help='Seed for the PRNG.')
-    parser.add_argument('--time-limit', action='store', dest='time_limit_sec', default=60., help='Time limit in seconds.')
+    parser.add_argument('--time-limit', action='store', dest='time_limit_sec', default=60., help='Time limit in seconds, wall clock time.')
 
     parser.add_argument('--delay-factor', action='store', dest='delay_factor', type=float, default=1.,
                         help='Weight of the delay.')
