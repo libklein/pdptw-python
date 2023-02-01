@@ -14,11 +14,7 @@ class Operator(Protocol):
     """
     def generate_moves(self, solution: Solution) -> Iterable[Move]:
         """
-
-        :param solution:
-        :type solution:
-        :return:
-        :rtype:
+        Generates moves that could be applied to the given solution.
         """
         ...
 
@@ -48,6 +44,11 @@ class LocalSearchSolver:
         return None
 
     def optimize(self, solution: Solution):
+        """
+        Generates solutions found by exploring the neighborhood of solution as defined by this class. Modifies the
+        solution in-place. Applies the first worthwhile move.
+        :param solution: The solution the search originates from
+        """
         self._reset_cache()
         solution.shuffle_route_order()
         while True:
@@ -56,8 +57,6 @@ class LocalSearchSolver:
             # Apply
             prev_cost = solution.get_objective(self._penalty)
             expected_cost = prev_cost + move.delta_cost
-            # print("Applying move", move.delta_cost, "to solution with cost", prev_cost)
             move.apply()
-            yield
-            # print(f"New cost: {solution.get_objective(self._penalty)}, prev cost: {prev_cost}, expected: {expected_cost}, delta: {abs(prev_cost - expected_cost)}")
+            yield solution
             assert abs(expected_cost - solution.get_objective(self._penalty)) <= 0.01
