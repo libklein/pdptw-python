@@ -1,0 +1,79 @@
+import math
+import random
+from copy import deepcopy
+from pathlib import Path
+from typing import Iterable
+
+import pytest
+
+from order_dispatcher.evaluation import ExactEvaluation, ConstantTimeEvaluation
+from order_dispatcher.models import Instance, PenaltyFactors, create_instance, Solution, Route, Request
+
+
+@pytest.fixture
+def penalty_factors():
+    return PenaltyFactors(1.0, 1.0, 1., 100.)
+
+@pytest.fixture
+def instance():
+    driver_file = Path("./data/driver_data_challenge.csv")
+    order_file = Path("./data/order_data_challenge.csv")
+
+    return create_instance(order_file, driver_file)
+
+def insert_requests_randomly(route: Route, requests: Iterable[Request]) -> Route:
+    new_route = deepcopy(route)
+    for r in requests:
+        insert_pickup_pos = random.randint(1, len(new_route.nodes))
+        insert_dropoff_pos = random.randint(insert_pickup_pos, len(new_route.nodes))
+        new_route.insert(r, pickup_at=insert_pickup_pos, dropoff_at=insert_dropoff_pos)
+    return new_route
+
+
+def test_removal_evaluation(instance: Instance, penalty_factors: PenaltyFactors, n_tests=1000):
+    evaluation = ConstantTimeEvaluation(instance, penalty_factors=penalty_factors,
+                                        target_fairness=instance.avg_requests_per_driver)
+    exact_evaluation = ExactEvaluation(instance, penalty_factors=penalty_factors,
+                                       target_fairness=instance.avg_requests_per_driver)
+    sol = Solution(instance=instance)
+    # Test removal - create random route
+    for test_num in range(n_tests):
+        route = random.choice(sol.routes)
+        request_set = random.sample(instance.requests, k=random.randint(0, math.ceil(2 * instance.avg_requests_per_driver)))
+        rand_route = insert_requests_randomly(route=route, requests=request_set)
+        # Remove all requests in random order
+        while len(rand_route.requests) > 0:
+            next_removed_request = random.choice(rand_route.requests)
+
+            simulated = evaluation.calculate_removal(next_removed_request, rand_route)
+            exact = exact_evaluation.calculate_removal(next_removed_request, rand_route)
+
+            assert exact.feasible == simulated.feasible
+            assert abs(
+                exact.delta_cost - simulated.delta_cost) <= 0.01, f'Expected {exact.delta_cost=} got {simulated.delta_cost=}'
+
+            # Perform removal
+            rand_route.remove(next_removed_request)
+
+
+def test_insertion_evaluation(instance: Instance, penalty_factors: PenaltyFactors, n_tests=1000):
+    evaluation = ConstantTimeEvaluation(instance, penalty_factors=penalty_factors,
+                                        target_fairness=instance.avg_requests_per_driver)
+    exact_evaluation = ExactEvaluation(instance, penalty_factors=penalty_factors,
+                                       target_fairness=instance.avg_requests_per_driver)
+    sol = Solution(instance=instance)
+    # Test removal - create random route
+    for test_num in range(n_tests):
+        route = deepcopy(random.choice(sol.routes))
+        request_set = random.sample(instance.requests, k=random.randint(0, math.ceil(2 * instance.avg_requests_per_driver)))
+        for request_to_insert in request_set:
+            insert_pickup_pos = random.randint(1, len(route.nodes))
+
+            for exact_move, simulated_move in zip(
+                    exact_evaluation.calculate_insertion(request_to_insert, route, at=insert_pickup_pos),
+                    evaluation.calculate_insertion(request_to_insert, route, at=insert_pickup_pos)):
+                assert (
+                                   exact_move.delta_cost - simulated_move.delta_cost) < 0.01, f'{exact_move.delta_cost=} is not {simulated_move.delta_cost=}'
+
+            insert_dropoff_pos = random.randint(insert_pickup_pos, len(route.nodes))
+            route.insert(request_to_insert, pickup_at=insert_pickup_pos, dropoff_at=insert_dropoff_pos)

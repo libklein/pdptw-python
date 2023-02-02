@@ -23,10 +23,13 @@ class Operator(Protocol):
 
 
 class LocalSearchSolver:
-    def __init__(self, instance: Instance, initial_penalty: PenaltyFactors, operators: list[Operator]):
+    def __init__(self, instance: Instance, penalty: PenaltyFactors, operators: list[Operator]):
         self._instance = instance
-        self._penalty = copy(initial_penalty)
+        self._penalty = penalty
         self._operators = operators
+
+    def notify_penalty_updated(self):
+        self._reset_cache()
 
     def _generate_moves(self, solution: Solution) -> Iterable[Move]:
         # You can switch to feasible moves only by filtering the move stream
@@ -58,5 +61,6 @@ class LocalSearchSolver:
             prev_cost = solution.get_objective(self._penalty)
             expected_cost = prev_cost + move.delta_cost
             move.apply()
+            assert abs(expected_cost - solution.get_objective(self._penalty)) <= 0.01
             yield solution
             assert abs(expected_cost - solution.get_objective(self._penalty)) <= 0.01

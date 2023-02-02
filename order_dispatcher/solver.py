@@ -21,6 +21,7 @@ class Solver:
         self._instance = instance
         self._obj_factor = objective_function_factors
         self._time_limit = time_limit_sec
+        # The penalty used in the local search and by operators
         self._penalty = PenaltyFactors(delay_factor=self._obj_factor.delay_factor, overtime_factor=10000.,
                                        overload_factor=10000., fairness_factor=self._obj_factor.fairness_factor)
 
@@ -58,6 +59,22 @@ class Solver:
     def _should_terminate(self):
         return (time.time() - self._solver_start_time) >= self._time_limit
 
+    def _update_penalty(self, solution: Solution):
+        """
+        Updates the factors of the generalized cost function based on the feasibility of solution
+        """
+        if solution.cost.has_overtime:
+            self._penalty.overtime_factor *= 1.2
+        else:
+            self._penalty.overtime_factor *= 0.8
+        if solution.cost.is_overloaded:
+            self._penalty.overload_factor *= 1.2
+        else:
+            self._penalty.overload_factor *= 0.8
+        # Propagate update to local search solver.
+        self._local_search_solver.notify_penalty_updated()
+
+
     def _generate_solutions(self):
         """
         Generates solutions using LNS. Yields each explored solution.
@@ -70,6 +87,8 @@ class Solver:
             # Improve with local search
             for _ in self._local_search_solver.optimize(next_candidate_solution):
                 yield deepcopy(next_candidate_solution)
+
+            self._update_penalty(next_candidate_solution)
 
     def solve(self):
         """

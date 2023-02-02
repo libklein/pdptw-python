@@ -178,7 +178,8 @@ class Vehicle:
 
     Properties:
     capacity (int): Capacity of the vehicle.
-    end_time (int): End time of the driver's shift.
+    shift_begin (Timestamp): Start time of the driver's shift.
+    shift_end (Timestamp): End time of the driver's shift.
     """
     vehicle_id: int
     start: Vertex
@@ -189,7 +190,11 @@ class Vehicle:
         return self.driver.vehicle_capacity
 
     @property
-    def end_time(self):
+    def shift_start(self)-> Timestamp:
+        return self.driver.shift_start_sec
+
+    @property
+    def shift_end(self)-> Timestamp:
         return self.driver.shift_end_sec
 
 @dataclass(frozen=True)
@@ -279,7 +284,7 @@ def parse_order(data: dict[str, str]) -> Order:
     """
     return Order(order_id=int(data['order_id']), restaurant_location=(Degrees(data['restaurant_lat']),
                                                                       Degrees(data['restaurant_long'])),
-                 customer_location=(Degrees(data['restaurant_lat']), Degrees(data['restaurant_long'])),
+                 customer_location=(Degrees(data['customer_lat']), Degrees(data['customer_long'])),
                  no_of_items=int(data['no_of_items']), prep_duration_sec=Timestamp(data['prep_duration_sec']),
                  preferred_otd_sec=Timestamp(data['preferred_otd_sec']))
 

@@ -1,7 +1,6 @@
 # coding=utf-8
 from __future__ import annotations
 
-from copy import copy
 from typing import Iterable
 
 from .move import InsertionMove, RemovalMove
@@ -17,7 +16,7 @@ class ConstantTimeEvaluation:
     """
     def __init__(self, instance: Instance, penalty_factors: PenaltyFactors, target_fairness: float):
         self._instance = instance
-        self._penalty_factors = copy(penalty_factors)
+        self._penalty_factors = penalty_factors
         self._target_fairness = target_fairness
 
     def compute_cost(self, cost: Cost) -> float:
@@ -41,7 +40,7 @@ class ConstantTimeEvaluation:
             label = concatenate(label, target_node.backward_label,
                                 self._instance.get_travel_time(prev_node.vertex, target_node.vertex))
 
-        cost = label.get_cost(from_route._vehicle.capacity, from_route._vehicle.end_time, fairness_violation)
+        cost = label.get_cost(from_route._vehicle.capacity, from_route._vehicle.shift_end, fairness_violation)
         return RemovalMove(delta_cost=self.compute_cost(cost) - prev_cost,
                            feasible=cost.feasible,
                            request=of, route=from_route)
@@ -63,7 +62,7 @@ class ConstantTimeEvaluation:
                                          self._instance.get_travel_time(pred_vertex, of.dropoff))
             inserted_label = concatenate(inserted_label, succ_node.backward_label,
                                          self._instance.get_travel_time(of.dropoff, succ_node.vertex))
-            insertion_cost = inserted_label.get_cost(capacity, into_route._vehicle.end_time, fairness_violation)
+            insertion_cost = inserted_label.get_cost(capacity, into_route._vehicle.shift_end, fairness_violation)
             yield InsertionMove(delta_cost=self.compute_cost(insertion_cost) - prev_cost,
                                 feasible=insertion_cost.feasible,
                                 pickup_insertion_point=at,
@@ -80,7 +79,7 @@ class ConstantTimeEvaluation:
 
         label = concatenate(label, Label.FromVertex(of.dropoff),
                             self._instance.get_travel_time(pred_vertex, of.dropoff))
-        cost = label.get_cost(capacity, into_route._vehicle.end_time, fairness_violation)
+        cost = label.get_cost(capacity, into_route._vehicle.shift_end, fairness_violation)
         yield InsertionMove(delta_cost=self.compute_cost(cost) - prev_cost,
                             feasible=cost.feasible,
                             pickup_insertion_point=at, dropoff_insertion_point=len(into_route),

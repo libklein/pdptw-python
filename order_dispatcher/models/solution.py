@@ -76,8 +76,6 @@ class Label:
     # The cumulated (i.e., current) load allocated by picked up/delivered items
     cum_load: int
 
-    # Actual starting time of the activity
-    activity_start_time: Timestamp
     # Earliest possible arrival time assuming feasibility
     earliest_arrival_time: Timestamp
     # Latest possible arrival time assuming feasibility
@@ -95,7 +93,7 @@ class Label:
 
     @staticmethod
     def FromVertex(vertex: Vertex):
-        return Label(cum_time=0., cum_travel_time=0., cum_load=vertex.no_of_items, activity_start_time=vertex.tw_start,
+        return Label(cum_time=0., cum_travel_time=0., cum_load=vertex.no_of_items,
                      earliest_arrival_time=vertex.tw_start,
                      latest_arrival_time=vertex.tw_end, cum_delay=0., max_load=0)
 
@@ -109,7 +107,6 @@ def concatenate(prefix: Label, postfix: Label, travel_time: Duration) -> Label:
         cum_time=prefix.cum_time + postfix.cum_time + travel_time + waiting_time,
         cum_travel_time=prefix.cum_travel_time + postfix.cum_travel_time + travel_time,
         cum_load=load,
-        activity_start_time=max(prefix.activity_start_time + travel_time, postfix.earliest_arrival_time),
         earliest_arrival_time=max(postfix.earliest_arrival_time - delta, prefix.earliest_arrival_time) - waiting_time,
         latest_arrival_time=min(postfix.latest_arrival_time - delta, prefix.latest_arrival_time) + delay,
         cum_delay=prefix.cum_delay + postfix.cum_delay + delay,
@@ -120,12 +117,15 @@ def concatenate(prefix: Label, postfix: Label, travel_time: Duration) -> Label:
 @dataclass(slots=True)
 class Node:
     """
-    An aggregate of vertices and labels. Associates each vertex with labels capturing the state
+    An aggregate of vertices and labels. Associates each vertex with labels capturing the state of the partial
+    routes up to this node, and from this node on.
+    It further carries the actual start time of the activity represented by this node, i.e., including waiting times.
 
     Note: A more efficient and perhaps cleaner implementation could represent routes as a doubly-linked list of nodes. A
     node then have set/get next/prev functions that allow to update the labels on update.
     """
     vertex: Vertex
+    activity_start_time: Timestamp
     forward_label: Label
     backward_label: Label
 
@@ -142,7 +142,7 @@ class Node:
 
     @staticmethod
     def FromVertex(vertex: Vertex):
-        return Node(vertex, Label.FromVertex(vertex), Label.FromVertex(vertex))
+        return Node(vertex, vertex.tw_start, Label.FromVertex(vertex), Label.FromVertex(vertex))
 
 
 class Route:
@@ -166,6 +166,10 @@ class Route:
         self._last_modified_timestamp: Timestamp = time.time()
 
     @property
+    def assigned_driver(self):
+        return self._vehicle.driver
+
+    @property
     def last_modification_time(self):
         return self._last_modified_timestamp
 
@@ -182,10 +186,11 @@ class Route:
         Updates the node labels to maintain the route invariant
         """
         for prev_node, next_node in itertools.pairwise(self._nodes):
+            travel_time = self._instance.get_travel_time(prev_node.vertex, next_node.vertex)
             next_node.forward_label = concatenate(prev_node.forward_label, Label.FromVertex(next_node.vertex),
-                                                  self._instance.get_travel_time(prev_node.vertex, next_node.vertex))
-            assert next_node.forward_label.activity_start_time >= prev_node.vertex.tw_start
-            assert next_node.forward_label.activity_start_time >= next_node.vertex.tw_start
+                                                  travel_time)
+            next_node.activity_start_time = max(next_node.vertex.tw_start,
+                               prev_node.activity_start_time + travel_time)
         # Backwards node may have changes
         self._nodes[-1].backward_label = Label.FromVertex(self._nodes[-1].vertex)
         # prev_node is before next_node viewed from the first node, i.e., in regular and not reversed order:
@@ -229,7 +234,11 @@ class Route:
         self.insert(request, len(self._nodes), len(self._nodes))
 
     def __str__(self):
-        return "-".join(map(str, self._nodes)) + " | " + str(self.cost)
+        ret = ""
+        for t, n in zip(self.activity_starting_times, self._nodes):
+            ret += f"-{n}[{t:.2f}]"
+        return ret
+        #return "-".join(map(str, self._nodes)) + " | " + str(self.cost)
 
     @property
     def nodes(self):
@@ -273,8 +282,8 @@ class Route:
 
     @property
     def cost(self):
-        return self._nodes[-1].forward_label.get_cost(self._vehicle.capacity, self._vehicle.end_time,
-                                   abs(self._instance.avg_requests_per_driver - len(self.requests)))
+        return self._nodes[-1].forward_label.get_cost(self._vehicle.capacity, self._vehicle.shift_end,
+                                                      abs(self._instance.avg_requests_per_driver - len(self.requests)))
 
     def get_objective(self, factors: PenaltyFactors):
         return self.cost * factors
