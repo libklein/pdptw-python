@@ -20,7 +20,7 @@ class DestroyOperator(Protocol):
 class RepairOperator(Protocol):
     def repair(self, solution: Solution, missing_requests: set[Request]):
         """
-        Repairs the solution by insering missing_requests sequentially at their respective best insertion points.
+        Repairs the solution by inserting missing_requests sequentially at their respective best insertion points.
         Modifies the solution in-place.
         :param solution: The solution.
         :param missing_requests: The set of missing requests.

@@ -1,11 +1,11 @@
 import itertools
 from csv import DictReader
-from dataclasses import dataclass, fields
+from dataclasses import dataclass
 from enum import IntEnum
 from functools import partial
 from math import radians, cos, sin, asin, sqrt
 from pathlib import Path
-from typing import TypeVar, Type, Callable
+from typing import TypeVar, Callable
 
 # Degrees of Lat/Long
 Degrees = float
@@ -22,6 +22,7 @@ Distance = float
 TravelTimeMatrix = list[list[Duration]]
 # Generic type
 T = TypeVar('T')
+
 
 class VertexType(IntEnum):
     """Enum representing the type of vertex, either START, PICKUP, or DROPOFF"""
@@ -71,7 +72,7 @@ class Driver:
 @dataclass(frozen=True)
 class Vertex:
     """Dataclass representing a vertex. Vertices form the base of the routing problem:
-    Each vertex represents a (not nessesarily unique) location, such that we have a vertex
+    Each vertex represents a (not necessarily unique) location, such that we have a vertex
     for each pickup, dropoff, and driver starting location.
 
     Attributes:
@@ -125,8 +126,10 @@ class Vertex:
 
 def compute_distance(from_lat_lon: Location, to_lat_lon: Location) -> Distance:
     """
-    Computes the haversine function between two Locations. Assumes a earth radius of 6364,757km. This corresponds to
+    Computes the haversine function between two Locations. Assumes an earth radius of 6364,757km. This corresponds to
     the radius observed at the average over all locations in the sample CSV files.
+
+    The actual code is from stack overflow.
 
     :param from_lat_lon: origin location
     :param to_lat_lon: target location
@@ -190,12 +193,13 @@ class Vehicle:
         return self.driver.vehicle_capacity
 
     @property
-    def shift_start(self)-> Timestamp:
+    def shift_start(self) -> Timestamp:
         return self.driver.shift_start_sec
 
     @property
-    def shift_end(self)-> Timestamp:
+    def shift_end(self) -> Timestamp:
         return self.driver.shift_end_sec
+
 
 @dataclass(frozen=True)
 class Request:
@@ -224,9 +228,10 @@ class Request:
 
 class Instance:
     """
-    A instance of the routing problem.
-    The class assumes that the ID of a vertex corresponds to it's position in the list of vertices.
+    An instance of the routing problem.
+    The class assumes that the ID of a vertex corresponds to its position in the list of vertices.
     """
+
     def __init__(self, vertices: list[Vertex], travel_times: TravelTimeMatrix, vehicles: list[Vehicle],
                  requests: list[Request]):
         assert len(vertices) > 0
@@ -255,16 +260,13 @@ class Instance:
         return self._vehicles
 
     @property
-    def vertices(self) -> list[Vertex]:
-        pass
-
-    @property
     def requests(self) -> list[Request]:
         return self._requests
 
     @property
     def avg_requests_per_driver(self):
         return len(self._requests) / len(self._vehicles)
+
 
 def parse(factory: Callable[[dict[str, str]], T], file: Path) -> list[T]:
     """
@@ -330,7 +332,8 @@ def create_instance(order_file: Path, driver_file: Path) -> Instance:
 
     # Create a vertex for each driver starting location
     vertices = [
-        Vertex(vertex_id=v_id, vertex_type=VertexType.START, tw_start=driver.shift_start_sec, tw_end=driver.shift_end_sec,
+        Vertex(vertex_id=v_id, vertex_type=VertexType.START, tw_start=driver.shift_start_sec,
+               tw_end=driver.shift_end_sec,
                location=driver.start_location, no_of_items=0) for v_id, driver in
         enumerate(drivers)
     ]

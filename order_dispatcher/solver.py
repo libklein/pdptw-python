@@ -2,12 +2,12 @@ import random
 import time
 from copy import copy, deepcopy
 
-from order_dispatcher.models import Instance, Duration
 from order_dispatcher.evaluation import ConstantTimeEvaluation
+from order_dispatcher.models import Instance, Duration
 from order_dispatcher.models.solution import Solution, PenaltyFactors
-from order_dispatcher.subsolvers import LocalSearchSolver, LargeNeighborhood
 from order_dispatcher.operators.best_insertion_operator import BestInsertionOperator
 from order_dispatcher.operators.random_destroy_operator import RandomDestroyOperator
+from order_dispatcher.subsolvers import LocalSearchSolver, LargeNeighborhood
 from order_dispatcher.subsolvers.local_search.operators.relocate_operator import RelocateOperator
 
 
@@ -46,7 +46,7 @@ class Solver:
         best_insertion_operator = BestInsertionOperator(self._evaluation)
         sol = Solution(self._instance)
 
-        request_set = copy(self._instance._requests)
+        request_set = copy(self._instance.requests)
         # Randomize the order in which requests are considered for insertion.
         random.shuffle(request_set)
 
@@ -71,9 +71,8 @@ class Solver:
             self._penalty.overload_factor *= 1.2
         else:
             self._penalty.overload_factor *= 0.8
-        # Propagate update to local search solver.
+        # Propagate update to local search solver. It would be cleaner to raise an event in the actual penalty factor class.
         self._local_search_solver.notify_penalty_updated()
-
 
     def _generate_solutions(self):
         """
@@ -82,7 +81,7 @@ class Solver:
         while True:
             # Generate new solution
             next_candidate_solution = next(self._large_neighborhood.explore_neighborhood_of(self._best_solution))
-            # Returns a copy as we will modify next_canidate_solution further
+            # Returns a copy as we will modify next_candidate_solution further
             yield deepcopy(next_candidate_solution)
             # Improve with local search
             for _ in self._local_search_solver.optimize(next_candidate_solution):
@@ -105,7 +104,7 @@ class Solver:
                 yield self._best_solution
             if candidate_solution.feasible and (
                     self._best_feasible_solution is None or self._best_feasible_solution.get_objective(
-                    self._obj_factor) > candidate_objective):
+                self._obj_factor) > candidate_objective):
                 self._best_feasible_solution = candidate_solution
                 yield self._best_feasible_solution
 

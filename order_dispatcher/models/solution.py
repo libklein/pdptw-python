@@ -155,6 +155,7 @@ class Route:
 
     * Time stamp of last modification
     """
+
     def __init__(self, instance: Instance, vehicle: Vehicle):
         self._instance = instance
         self._vehicle = vehicle
@@ -164,6 +165,10 @@ class Route:
         self._requests: list[Request] = []
         # Last modification time in seconds
         self._last_modified_timestamp: Timestamp = time.time()
+
+    @property
+    def vehicle_capacity(self):
+        return self._vehicle.capacity
 
     @property
     def assigned_driver(self):
@@ -190,7 +195,7 @@ class Route:
             next_node.forward_label = concatenate(prev_node.forward_label, Label.FromVertex(next_node.vertex),
                                                   travel_time)
             next_node.activity_start_time = max(next_node.vertex.tw_start,
-                               prev_node.activity_start_time + travel_time)
+                                                prev_node.activity_start_time + travel_time)
         # Backwards node may have changes
         self._nodes[-1].backward_label = Label.FromVertex(self._nodes[-1].vertex)
         # prev_node is before next_node viewed from the first node, i.e., in regular and not reversed order:
@@ -215,7 +220,6 @@ class Route:
         self._requests.append(request)
         self._handle_change()
 
-
     def remove(self, request: Request):
         """
         Removes a request from the route.
@@ -234,11 +238,7 @@ class Route:
         self.insert(request, len(self._nodes), len(self._nodes))
 
     def __str__(self):
-        ret = ""
-        for t, n in zip(self.activity_starting_times, self._nodes):
-            ret += f"-{n}[{t:.2f}]"
-        return ret
-        #return "-".join(map(str, self._nodes)) + " | " + str(self.cost)
+        return "-".join(map(str, self._nodes)) + " | " + str(self.cost)
 
     @property
     def nodes(self):
@@ -296,6 +296,7 @@ class Solution:
     Note: I would have not chosen this design in production code, but would enforce that modifications to route objects happen through the solution, i.e.,
     by providing only route ID's to any entities interacting with a solution.
     """
+
     def __init__(self, instance: Instance):
         self._instance = instance
         self._routes: list[Route] = [

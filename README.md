@@ -1,11 +1,20 @@
 The solver is implemented in Python version 3.10. I decided against external dependencies to not cause additional overhead on your side.
 
-Assumptions:
+### Running the code
+
+I have provided a shell script to run the code in default configuration. Use
+```shell
+python -m order_dispatcher -h
+```
+to see a list of supported command line arguments.
+
+# Approach
+
+### Assumptions:
 * Restaurants prepare orders in parallel. Specifically, two orders with preparation times a and b assigned to the same restaurant become available at a and b, respectively (In alignment with Pol).
 * *Fairness* relates to the number of orders assigned to each courier, not the courier's travel time.
 * Couriers can, if their capacity allows, deliver multiple orders at once.
 
-# Approach
 ## Model
 
 I model this problem as a `Pickup and Delivery Problem (PDP)` with heterogeneous vehicles, soft time windows, 
@@ -88,14 +97,6 @@ The local search procedure uses a single operator: relocate.
 
 I generate a starting solution by inserting requests into an initially empty solution in random order. Each request is
 inserted at it's best possible position.
-
-### Running the code
-
-I have provided a shell script to run the code in default configuration. Use
-```shell
-python -m order_dispatcher -h
-```
-to see a list of supported command line arguments.
 
 # Further improvements
 

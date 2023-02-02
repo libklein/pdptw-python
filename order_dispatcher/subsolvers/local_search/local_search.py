@@ -1,6 +1,5 @@
 # coding=utf-8
 import itertools
-from copy import copy
 from typing import Protocol, Iterable, Optional
 
 from order_dispatcher.evaluation import Move
@@ -12,6 +11,7 @@ class Operator(Protocol):
     """
     A local search operator
     """
+
     def generate_moves(self, solution: Solution) -> Iterable[Move]:
         """
         Generates moves that could be applied to the given solution.

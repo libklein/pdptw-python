@@ -1,11 +1,11 @@
+import argparse
 import csv
 import math
-import time
 import random
+import time
 from pathlib import Path
-import argparse
 
-from order_dispatcher.models import create_instance, Request, Driver, Timestamp, Instance
+from order_dispatcher.models import create_instance, Request, Instance
 from order_dispatcher.models.solution import Solution, PenaltyFactors
 from order_dispatcher.solver import Solver
 
@@ -15,13 +15,15 @@ def cli():
     parser.add_argument('driver_file', help='Path to the file containing driver data in csv format.')
     parser.add_argument('order_file', help='Path to the file containing order data in csv format.')
     parser.add_argument('--seed', action='store', dest='seed', default=None, help='Seed for the PRNG.')
-    parser.add_argument('--time-limit', action='store', dest='time_limit_sec', default=60., help='Time limit in seconds, wall clock time.')
+    parser.add_argument('--time-limit', action='store', dest='time_limit_sec', default=60.,
+                        help='Time limit in seconds, wall clock time.')
 
     parser.add_argument('--delay-factor', action='store', dest='delay_factor', type=float, default=1.,
                         help='Weight of the delay.')
     parser.add_argument('--fairness-factor', action='store', dest='fairness_factor', type=float, default=1000.,
                         help='Weight of the fairness.')
-    parser.add_argument('--output-file', dest='output_file', default='solution.csv', help='Path to store the solution at.')
+    parser.add_argument('--output-file', dest='output_file', default='solution.csv',
+                        help='Path to store the solution at.')
 
     cli_args = parser.parse_args().__dict__
 
@@ -35,7 +37,7 @@ def cli():
         raise ValueError("Order file {} does not exist or is not a file!")
 
     # Do necessary conversions. We could also do this via reflection on the signature of solve or using the arguments
-    # list of parser but I wanted to keep the code simple.
+    # list of parser, but I wanted to keep the code simple.
     cli_args['driver_file'] = driver_file
     cli_args['order_file'] = order_file
     cli_args['output_file'] = Path(cli_args['output_file'])
@@ -52,8 +54,9 @@ def cli():
     solve(**cli_args)
 
 
-def solve(driver_file: Path, order_file: Path, time_limit_sec: float, delay_factor: float, fairness_factor: float, seed: int, output_file: Path):
-    # Note, i use the global random here. I'd inject instances of Random() in production code
+def solve(driver_file: Path, order_file: Path, time_limit_sec: float, delay_factor: float, fairness_factor: float,
+          seed: int, output_file: Path):
+    # Note, I use the global random here. I'd inject instances of Random() in production code
     random.seed(seed)
 
     objective_coefficients = PenaltyFactors(delay_factor=delay_factor, overload_factor=0.,
@@ -78,7 +81,8 @@ def solve(driver_file: Path, order_file: Path, time_limit_sec: float, delay_fact
 def _export_solution(best_sol: Solution, instance: Instance, output_file: Path):
     def find_request_data(request: Request):
         request_route = best_sol.find_route(request)
-        pickup_node, dropoff_node = request_route.get_node_of(request.pickup), request_route.get_node_of(request.dropoff)
+        pickup_node, dropoff_node = request_route.get_node_of(request.pickup), request_route.get_node_of(
+            request.dropoff)
         return request_route.assigned_driver.driver_id, pickup_node.activity_start_time, dropoff_node.activity_start_time
 
     # Export the solution

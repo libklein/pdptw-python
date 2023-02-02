@@ -4,9 +4,9 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Iterable
 
-from .move import InsertionMove, RemovalMove
 from order_dispatcher.models import Instance, PenaltyFactors, Request, Route
 from order_dispatcher.models.solution import Cost
+from .move import InsertionMove, RemovalMove
 
 
 class ExactEvaluation:
@@ -14,6 +14,7 @@ class ExactEvaluation:
     Evaluates moves by copying the route, modifying the copy according to the requested move, and calculating
     the resulting objective value.
     """
+
     def __init__(self, instance: Instance, penalty_factors: PenaltyFactors, target_fairness: float):
         self._instance = instance
         self._penalty_factors = penalty_factors
@@ -36,7 +37,7 @@ class ExactEvaluation:
     def calculate_insertion(self, of: Request, into_route: Route, at: int) -> Iterable[InsertionMove]:
         assert of not in into_route.requests
         prev_cost = self.compute_cost(into_route.cost)
-        # Find best insertion spot
+        # Find the best insertion spot
         assert at > 0
         for succ_idx in range(at, len(into_route) + 1):
             tmp_route = deepcopy(into_route)

@@ -2,8 +2,8 @@
 import time
 from dataclasses import dataclass
 
-from order_dispatcher.models import Solution, Route
 from order_dispatcher.evaluation import Evaluation, RemovalMove, InsertionMove
+from order_dispatcher.models import Solution, Route
 
 
 @dataclass
@@ -35,6 +35,7 @@ class RelocateOperator:
     """
     Relocate operator. Defines the relocate neighborhood. Considers only inter-route relocates.
     """
+
     def __init__(self, evaluation: Evaluation):
         self._evaluation = evaluation
         self.reset_cache()

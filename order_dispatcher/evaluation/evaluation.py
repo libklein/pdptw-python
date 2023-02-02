@@ -3,15 +3,16 @@ from __future__ import annotations
 
 from typing import Protocol, Iterable
 
-from .move import RemovalMove, InsertionMove
 from order_dispatcher.models import Request, Route
 from order_dispatcher.models.solution import Cost
+from .move import RemovalMove, InsertionMove
 
 
 class Evaluation(Protocol):
     """
     The evaluation interface. Allows to evaluate the impact of an insertion or removal.
     """
+
     def compute_cost(self, cost: Cost) -> float:
         ...
 

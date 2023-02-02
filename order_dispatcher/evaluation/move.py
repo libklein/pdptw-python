@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol
 
-from order_dispatcher.models import Solution, Request, Route
+from order_dispatcher.models import Request, Route
 
 
 class Move(Protocol):
@@ -15,6 +15,7 @@ class Move(Protocol):
     Note: A better implementation would take the solution/route as an argument (command pattern).
     But this would require route_ids rather than references.
     """
+
     @property
     def delta_cost(self) -> float:
         ...

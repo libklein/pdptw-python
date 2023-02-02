@@ -1,6 +1,6 @@
 # coding=utf-8
-from order_dispatcher.models import Request
 from order_dispatcher.evaluation.evaluation import Evaluation
+from order_dispatcher.models import Request
 from order_dispatcher.models.solution import Solution
 
 
